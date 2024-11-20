@@ -1,0 +1,105 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+
+#define $revlist \
+  2:#elt; \
+  2->1:$list(#elt)(2 of 1 pure,2); \
+  $list(#elt)
+global $revlist revlist(1 pure,2);
+local pure service RevList(revlist (1 of 2) this) // {{{
+( this>>#elt;
+  local pure Rev($list(#elt)(2 of 1 pure,2) src, $list(#elt)(2 of 1 pure,2) dst, $list(#elt)(1 of 1 pure,2) this) // {{{
+  ( src[1]<<^pop;
+    src[1]>>
+    {^nil:
+      dst[1]<<^takeover<<this;
+     ^cons:
+      src[1]>>first>>rest;
+      dst[1]<<^cons<<first;
+      Rev(rest,dst,this);
+    }
+  ) // }}}
+  dst=new list(2 of 2);
+  dst<<#elt;
+  this[2]>>src;
+  Rev(src,dst,this);
+) // }}}
+|
+// Process data and print result
+local Process(Int max, $list(String)(2 of 1 pure,2) data) // {{{
+( data[1]<<^pop;
+  data[1]>>
+  {^nil:
+    c=new console(2 of 2);
+    c[1]<<^str<<"Result: "<<^int<<max<<^nl<<^end;
+   ^cons:
+    data[1]>>first>>rest;
+    Int f=0;
+    STRING2INT(first,f);
+    if max<=f
+    then Process(f,rest);
+    else Process(max,rest);
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=0
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      rlines[1]<<^pop;
+      rlines[1]>>
+      {^cons:
+        Int f=0;
+        rlines[1]>>first;
+        STRING2INT(first,f);
+        rlines[1]>>rest;
+        Process(f,rest);
+       ^nil:
+        c=new console(2 of 2);
+        c[1]<<^str<<"Error: No lines to process in file" << ^nl << ^end;
+      }
+    }
+  )
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
