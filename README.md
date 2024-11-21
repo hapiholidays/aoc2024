@@ -6,7 +6,7 @@ This is a project to implement solutions to (some of ) the Advent of Code 2024 p
 Hapi is a programming language unlike most other languages.
 Where other languages may be defined around functions (like ML), objects (like C++) or even proof-searching (like Prolog), Hapi is defined around processes, and is based on the theory of the asynchronous pi-calculus and multiparty session types.
 
-This means the solutions in Hapi should differ significantly from the solutions in Python, C++ etc. whic is why we believe it is a very interesting task to solve real world problems (or at least puzzles) in Hapi.
+This means the solutions in Hapi should differ significantly from the solutions in Python, C++ etc. which is why we believe it is a very interesting task to solve real world problems (or at least puzzles) in Hapi.
 
 ## Trying for yourself
 It is relatively easy to run Hapi yourself. All it requires is a docker installation and following the steps below
