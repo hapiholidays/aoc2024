@@ -3,45 +3,73 @@
 #include <struct/list.pi>
 #include <console.pi>
 #include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
 
-#define $revlist \
-  2:#elt; \
-  2->1:$list(#elt)(2 of 1 pure,2); \
-  $list(#elt)
-global $revlist revlist(1 pure,2);
-local pure service RevList(revlist (1 of 2) this) // {{{
-( this>>#elt;
-  local pure Rev($list(#elt)(2 of 1 pure,2) src, $list(#elt)(2 of 1 pure,2) dst, $list(#elt)(1 of 1 pure,2) this) // {{{
-  ( src[1]<<^pop;
-    src[1]>>
-    {^nil:
-      dst[1]<<^takeover<<this;
-     ^cons:
-      src[1]>>first>>rest;
-      dst[1]<<^cons<<first;
-      Rev(rest,dst,this);
-    }
-  ) // }}}
-  dst=new list(2 of 2);
-  dst<<#elt;
-  this[2]>>src;
-  Rev(src,dst,this);
-) // }}}
-|
 // Process data and print result
-local Process(Int max, $list(String)(2 of 1 pure,2) data) // {{{
+local Process($list(String)(2 of 1 pure,2) data, $list(String)(2 of 1 pure,2) names, $list(Int)(2 of 1 pure,2) maxes) // {{{
 ( data[1]<<^pop;
   data[1]>>
   {^nil:
-    c=new console(2 of 2);
-    c[1]<<^str<<"Result: "<<^int<<max<<^nl<<^end;
+    local PrintRes($list(String)(2 of 1 pure,2) names, $list(Int)(2 of 1 pure,2) values) // {{{
+    ( names[1]<<^pop;
+      names[1]>>
+      {^nil: values[1]<<^end;
+       ^cons:
+        names[1]>>name;
+        names[1]>>names2;
+        values[1]<<^pop;
+        values[1]>>
+        {^nil: names2[1]<<^end; // mismatch
+         ^cons:
+          values[1]>>val;
+          values[1]>>values2;
+          c=new console(2 of 2);
+          c[1]<<^str<<"Result: "<<^str<<name+": "<<^int<<val<<^nl<<^end;
+          PrintRes(names2,values2);
+        }
+      }
+    ) // }}}
+    PrintRes(names,maxes);
    ^cons:
     data[1]>>first>>rest;
-    Int f=0;
-    STRING2INT(first,f);
-    if max<=f
-    then Process(f,rest);
-    else Process(max,rest);
+    sf=new strfind(2 of 2);
+    sf[1]<<first;
+    sf[1]<<":";
+    sf[1]>>pos;
+    if pos<=0-1
+    then Process(rest,names,maxes); // Bad line
+    else String name=first/pos;
+         String maxstr=first%(pos+1);
+         Int max=0;
+         STRING2INT(maxstr,max);
+         local UpdMax(Int idx, $list(String)(2 of 1 pure,2) data, $list(String)(2 of 1 pure,2) names, $list(Int)(2 of 1 pure,2) maxes) // {{{
+         ( names[1]<<^get<<idx;
+           names[1]>>
+           {^err: // Reached end, must add name
+             names[1]>>err;
+             names[1]<<^cons<<name;
+             maxes[1]<<^cons<<max;
+             Process(data,names,maxes);
+            ^val:
+             names[1]>>n;
+             if n=name
+             then maxes[1]<<^get<<idx;
+                  maxes[1]>>
+                  {^err: // This should not happen
+                    maxes[1]>>err;
+                    Process(data,names,maxes);
+                   ^val:
+                     maxes[1]>>m;
+                     if max<=m
+                     then Process(data,names,maxes);
+                     else maxes[1]<<^set<<idx<<max;
+                          Process(data,names,maxes);
+                  }
+             else UpdMax(idx+1,data,names,maxes);
+           }
+         ) // }}}
+         UpdMax(0,rest,names,maxes);
   }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
@@ -60,20 +88,13 @@ local ProcessFile($infile(2 of 1,2) fin) // {{{
       rlines=new revlist(2 of 2);
       rlines<<String;
       rlines[1]<<lines;
-      rlines[1]<<^pop;
-      rlines[1]>>
-      {^cons:
-        Int f=0;
-        rlines[1]>>first;
-        STRING2INT(first,f);
-        rlines[1]>>rest;
-        Process(f,rest);
-       ^nil:
-        c=new console(2 of 2);
-        c[1]<<^str<<"Error: No lines to process in file" << ^nl << ^end;
-      }
+      names=new list(2 of 2);
+      names<<String;
+      maxes=new list(2 of 2);
+      maxes<<Int;
+      Process(rlines,names,maxes);
     }
-  )
+  ) // }}}
   lines=new list(2 of 2);
   lines<<String;
   ProcessFile2(fin,lines);

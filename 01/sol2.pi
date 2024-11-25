@@ -1,6 +1,7 @@
 #include <sys/args.pi>
 #include <sys/file.pi>
-#include <struct/list.pi>
+#include <struct/linlist.pi>
+#include <struct/pair.pi>
 #include <console.pi>
 #include <convert.pi>
 #include "listutils.pi"

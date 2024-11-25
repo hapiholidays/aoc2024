@@ -1,15 +1,16 @@
+#pragma once
 #include<console.pi>
 #include<struct/list.pi>
 #include<order.pi>
 #include<succ.pi>
 
+// mergesort: Mersesort List Service // {{{
 #define $abslistsort \
   2:#elt; \
   2->1:$order(#elt)(1 pure,2); \
   2->1:$list(#elt)(2 of 1 pure,2); \
   1->2:Bool; \
   $list(#elt)
-// mergesort: Mersesort List Service // {{{
 global $abslistsort mergesort(1 pure,2);
 local pure service MergesortService(mergesort (1 of 2) this) // {{{
 ( this>>#elt;
