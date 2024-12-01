@@ -1,50 +1,97 @@
 #include <sys/args.pi>
 #include <sys/file.pi>
-#include <struct/linlist.pi>
-#include <struct/pair.pi>
+#include <struct/list.pi>
 #include <console.pi>
 #include <convert.pi>
 #include "listutils.pi"
+#include "strutils.pi"
 
+#define $count \
+  2->1: Int; \
+  2->1: $list(Int)(2 of 1 pure,2); \
+  1->2: Int; \
+  $end;
+global $count count(1 pure,2);
+local pure service CountService(count (1 of 2) this) // {{{
+( this[2]>>n;
+  this[2]>>l;
+  local pure Count(1->2:Int;$end;(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) ns, Int c) // {{{
+  ( ns[1]<<^pop;
+    ns[1]>>
+    {^nil:
+      this[2]<<c;
+     ^cons:
+      ns[1]>>first>>tail;
+      if first=n
+      then Count(this,tail,c+1);
+      else Count(this,tail,c);
+    }
+  ) // }}}
+  Count(this,l,0);
+) // }}}
+|
 // Process data and print result
-local Process($list(String)(2 of 1 pure,2) data) // {{{
-( sorted = new mergesort(2 of 2);
-  sorted << String;
-  sorted[1]<<stdorder_String<<data;
-  sorted[1]>>x;
-  rsorted = new revlist(2 of 2);
-  rsorted << String;
-  rsorted[1]<<sorted;
-  ls = new list2str(2 of 2);
-  ls<<String;
-  ls[1]<<str2str<<rsorted;
-  ls[1]>>lstr;
-  c=new console(2 of 2);
-  c[1]<<^str<<lstr<<^nl<<^end;
-  //PrintStringList(rsorted);
+local Process($list(Int)(2 of 1 pure,2) llist, $list(Int)(2 of 1 pure,2) rlist, Int sim) // {{{
+( llist[1]<<^pop;
+  llist[1]>>
+  {^nil:
+    rlist[1]<<^end;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Result: "<<^int<<sim<<^nl<<^end;
+   ^cons:
+    llist[1]>>left>>lrest;
+    rlist[1]<<^copy;
+    rlist[1]>>rcopy;
+    cnt=new count(2 of 2);
+    cnt[1]<<left<<rcopy;
+    cnt[1]>>occ;
+    Process(lrest,rlist,sim+(left*occ));
+  }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
 local ProcessFile($infile(2 of 1,2) fin) // {{{
-( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(Int)(2 of 1 pure,2) llist, $list(Int)(2 of 1 pure,2) rlist) // {{{
   ( fin[1]<<^Line;
     fin[1]>>
     {^Some:
       fin[1]>>line;
       // Ignore empty lines
-      if line&^length<=0
-      then ProcessFile2(fin,lines);
-      else lines[1]<<^cons<<line;
-           ProcessFile2(fin,lines);
+      if line&^length<=7
+      then ProcessFile2(fin,llist,rlist);
+      else Int left=0;
+           STRING2INT(line/5,left);
+           llist[1]<<^cons<<left;
+           Int right=0;
+           STRING2INT(line%6,right);
+           rlist[1]<<^cons<<right;
+           ProcessFile2(fin,llist,rlist);
      ^None:
-      rlines=new revlist(2 of 2);
-      rlines<<String;
-      rlines[1]<<lines;
-      Process(rlines);
+      lsort=new mergesort(2 of 2);
+      lsort<<Int;
+      lsort[1]<<stdorder_Int;
+      lsort[1]<<llist;
+      lsort[1]>>ready;
+      rsort=new mergesort(2 of 2);
+      rsort<<Int;
+      rsort[1]<<stdorder_Int;
+      rsort[1]<<rlist;
+      rsort[1]>>ready;
+      //pl=new printlist(2 of 2);
+      //pl<<Int;
+      //pl[1]<<int2string;
+      //pl[1]<<lsort;
+      //pr=new printlist(2 of 2);
+      //pr<<Int;
+      //pr[1]<<int2string;
+      //pr[1]<<rsort;
+      Process(lsort,rsort,0);
     }
   ) // }}}
-  lines=new list(2 of 2);
-  lines<<String;
-  ProcessFile2(fin,lines);
+  llist=new list(2 of 2);
+  llist<<Int;
+  rlist=new list(2 of 2);
+  rlist<<Int;
+  ProcessFile2(fin,llist,rlist);
 ) // }}}
 // Open file, handle errors and call ProcessFile with filehandle in case of success
 local ProcessFilename(String fname) // {{{
