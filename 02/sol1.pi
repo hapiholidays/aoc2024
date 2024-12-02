@@ -1,0 +1,99 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) reports, Int countsafe) // {{{
+( reports[1]<<^pop;
+  reports[1]>>
+  {^nil:
+    c=new console(2 of 2);
+    c[1]<<^str<<"Result: "<<^int<<countsafe<<^nl<<^end;
+   ^cons:
+    reports[1]>>report>>rest;
+    sf=new strfind(2 of 2);
+    sf[1]<<report<<" ";
+    sf[1]>>pos;
+    if 0<=pos
+    then c=new console(2 of 2);
+         c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
+         Process(rest,countsafe);
+    else r1=report/pos;
+         rreport=report%pos+1;
+         sf=new strfind(2 of 2);
+         sf[1]<<rreport<<" ";
+         sf[1]>>pos;
+         if 0<=pos
+         then c=new console(2 of 2);
+              c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
+              Process(rest,countsafe);
+         else r2=rreport/pos;
+              rrreport=rreport%pos+1;
+              if r1<=r2 // increasing
+              then ...
+         
+    local ProcessReport($list(String)(2 of 1 pure,2) reports, String report, Int upordown) // {{{
+    ( 
+    )
+    rlist[1]>>
+    {^nil:
+      lrest[1]<<^end;
+      c=new console(2 of 2);
+      c[1]<<^str<<"Error uneven size!"<<^nl<<^str<<"Result: "<<^int<<diffs<<^nl<<^end;
+     ^cons:
+      rlist[1]>>right>>rrest;
+      if left<=right
+      then Process(lrest,rrest,diffs+(right-left));
+      else Process(lrest,rrest,diffs+(left-right));
+    }
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) reports) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,reports);
+      else reports[1]<<^cons<<line;
+           ProcessFile2(fin,reports);
+     ^None:
+      Process(reports,0);
+    }
+  ) // }}}
+  reports=new list(2 of 2);
+  reports<<String;
+  ProcessFile2(fin,reports);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
