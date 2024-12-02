@@ -6,6 +6,31 @@
 #include "listutils.pi"
 #include "strutils.pi"
 
+#define $popint \
+  2->1: String; \
+  1->2 \
+  {^nil: \
+    $end; \
+   ^cons: \
+    1->2: Int; \
+    1->2: String; \
+    $end; \
+  }
+global $popint popint(1,2);
+local service PopintService(popint (1 of 2) this) // {{{
+( this[2]>>str;
+  sf=new strfind(2 of 2);
+  sf[1]<<str<<" ";
+  sf[1]>>pos;
+  if pos<=0
+  then this[2]<<^nil;
+  else String istr=str/pos;
+       Int i=0;
+       STRING2INT(istr,i);
+       String tail=str%(pos+1);
+       this[2]<<^cons<<i<<tail;
+) // }}}
+|
 // Process data and print result
 local Process($list(String)(2 of 1 pure,2) reports, Int countsafe) // {{{
 ( reports[1]<<^pop;
@@ -15,40 +40,56 @@ local Process($list(String)(2 of 1 pure,2) reports, Int countsafe) // {{{
     c[1]<<^str<<"Result: "<<^int<<countsafe<<^nl<<^end;
    ^cons:
     reports[1]>>report>>rest;
-    sf=new strfind(2 of 2);
-    sf[1]<<report<<" ";
-    sf[1]>>pos;
-    if 0<=pos
-    then c=new console(2 of 2);
-         c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
-         Process(rest,countsafe);
-    else r1=report/pos;
-         rreport=report%pos+1;
-         sf=new strfind(2 of 2);
-         sf[1]<<rreport<<" ";
-         sf[1]>>pos;
-         if 0<=pos
-         then c=new console(2 of 2);
-              c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
-              Process(rest,countsafe);
-         else r2=rreport/pos;
-              rrreport=rreport%pos+1;
-              if r1<=r2 // increasing
-              then ...
-         
-    local ProcessReport($list(String)(2 of 1 pure,2) reports, String report, Int upordown) // {{{
-    ( 
-    )
-    rlist[1]>>
+    pi=new popint(2 of 2);
+    pi[1]<<report;
+    pi[1]>>
     {^nil:
-      lrest[1]<<^end;
       c=new console(2 of 2);
-      c[1]<<^str<<"Error uneven size!"<<^nl<<^str<<"Result: "<<^int<<diffs<<^nl<<^end;
+      c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
+      Process(rest,countsafe);
      ^cons:
-      rlist[1]>>right>>rrest;
-      if left<=right
-      then Process(lrest,rrest,diffs+(right-left));
-      else Process(lrest,rrest,diffs+(left-right));
+      pi[1]>>r1>>rtail;
+      pi2=new popint(2 of 2);
+      pi2[1]<<rtail;
+      pi2[1]>>
+      {^nil:
+        c=new console(2 of 2);
+        c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
+        Process(rest,countsafe);
+       ^cons:
+         pi2[1]>>r2>>rrtail;
+         local ProcessReport($list(String)(2 of 1 pure,2) reports, String rs, Bool increasing, Int prev) // {{{
+         ( sf=new strfind(2 of 2);
+           sf[1]<<rs<<" ";
+           sf[1]>>pos;
+           if pos<=0
+           then c=new console(2 of 2);
+                c[1]<<^str<<" Safe"<<^nl<<^end;
+                Process(reports,countsafe+1); // Safe
+           else String rstr=rs/pos;
+                Int r=0;
+                STRING2INT(rstr,r);
+                String rrs=rs%(pos+1);
+                c=new console(2 of 2);
+                c[1]<<^str<<" "<<^int<<r<<^end;
+                if not increasing
+                then // Decreasing
+                  if (r+1<=prev) and (prev<=r+3)
+                  then ProcessReport(reports,rrs,increasing,r);
+                  else c=new console(2 of 2);
+                       c[1]<<^str<<" Unsafe"<<^nl<<^end;
+                       Process(reports,countsafe); // Unsafe
+                else // Increasing
+                  if (prev+1<=r) and (r<=prev+3)
+                  then ProcessReport(reports,rrs,increasing,r);
+                  else c=new console(2 of 2);
+                       c[1]<<^str<<" Unsafe"<<^nl<<^end;
+                       Process(reports,countsafe); // Unsafe
+         ) // }}}
+         c=new console(2 of 2);
+         c[1]<<^int<<r1<<^end;
+         ProcessReport(rest,rtail+" ",r1<=r2,r1);
+      }
     }
   }
 ) // }}}
@@ -65,7 +106,10 @@ local ProcessFile($infile(2 of 1,2) fin) // {{{
       else reports[1]<<^cons<<line;
            ProcessFile2(fin,reports);
      ^None:
-      Process(reports,0);
+      rreports=new revlist(2 of 2);
+      rreports<<String;
+      rreports[1]<<reports;
+      Process(rreports,0);
     }
   ) // }}}
   reports=new list(2 of 2);
