@@ -31,69 +31,128 @@ local service PopintService(popint (1 of 2) this) // {{{
        this[2]<<^cons<<i<<tail;
 ) // }}}
 |
-#define $safereport \
-  2->1: $list(Int)(2 of 1 pure,1); \
+#define $xsafereport \
+  2->1: $list(Int)(2 of 1 pure,2); \
+  2->1: Bool; \
   1->2: Bool; \
   $end;
-global $safereport xsafereport(1,2);
+global $xsafereport xsafereport(1,2);
 local service XSaveReportService(xsafereport (1 of 2) this) // {{{
-( this[1]>>report>>inc;
+( this[2]>>report>>inc;
   report[1]<<^pop;
+  report[1]>>
   {^nil:
-    c=new console(2 of 2);
-    c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
-    this[1]<<false;
+    //c=new console(2 of 2);
+    //c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
+    this[2]<<false;
    ^cons:
-    report[1]>>r1>>rtail;
-    local SafeReport($list(String)(2 of 1 pure,2) reports, String rs, Bool increasing, Int prev) // {{{
-    ( sf=new strfind(2 of 2);
-      sf[1]<<rs<<" ";
-      sf[1]>>pos;
-      if pos<=0
-      then c=new console(2 of 2);
-           c[1]<<^str<<" Safe"<<^nl<<^end;
-           Process(reports,countsafe+1); // Safe
-      else String rstr=rs/pos;
-           Int r=0;
-           STRING2INT(rstr,r);
-           String rrs=rs%(pos+1);
-           c=new console(2 of 2);
-           c[1]<<^str<<" "<<^int<<r<<^end;
-           if not increasing
+    local SafeReport(1->2:Bool;$end;(1 of 1,2) this, $list(Int)(2 of 1 pure,2) rs, Int prev) // {{{
+    ( rs[1]<<^pop;
+      rs[1]>>
+      {^nil:
+        //c=new console(2 of 2);
+        //c[1]<<^str<<" Safe"<<^nl<<^end;
+        this[2]<<true;
+       ^cons:
+        rs[1]>>r>>rtail;
+        //c=new console(2 of 2);
+        //c[1]<<^str<<" "<<^int<<r<<^end;
+        if not inc
            then // Decreasing
              if (r+1<=prev) and (prev<=r+3)
-             then ProcessReport(reports,rrs,increasing,r);
-             else c=new console(2 of 2);
-                  c[1]<<^str<<" Unsafe"<<^nl<<^end;
-                  Process(reports,countsafe); // Unsafe
+             then SafeReport(this,rtail,r);
+             else //c=new console(2 of 2);
+                  //c[1]<<^str<<" Unsafe"<<^nl<<^end;
+                  rtail[1]<<^end;
+                  this[2]<<false; // Unsafe
            else // Increasing
              if (prev+1<=r) and (r<=prev+3)
-             then ProcessReport(reports,rrs,increasing,r);
-             else c=new console(2 of 2);
-                  c[1]<<^str<<" Unsafe"<<^nl<<^end;
-                  Process(reports,countsafe); // Unsafe
+             then SafeReport(this,rtail,r);
+             else //c=new console(2 of 2);
+                  //c[1]<<^str<<" Unsafe"<<^nl<<^end;
+                  rtail[1]<<^end;
+                  this[2]<<false; // Unsafe
+      }
     ) // }}}
     //c=new console(2 of 2);
     //c[1]<<^int<<r1<<^end;
-    SafeReport(rtail,inc,r1);
-      }
-    }
+    report[1]>>r1>>rtail;
+    SafeReport(this,rtail,r1);
+  }
 ) // }}}
 |
+#define $safereport \
+  2->1: $list(Int)(2 of 1 pure,2); \
+  1->2: Bool; \
+  $end;
 global $safereport safereport(1,2);
-local service SaveReportService(safereport (1 of 2) this) // {{{
-( this[2]>>report>>increasing;
-  
-  sf=new strfind(2 of 2);
-  sf[1]<<str<<" ";
-  sf[1]>>pos;
-  if pos<=0
-  then this[2]<<^nil;
-  else String istr=str/pos;
-       Int i=0;
-       STRING2INT(istr,i);
-       String tail=str%(pos+1);
-       this[2]<<^cons<<i<<tail;
+local service SafeReportService(safereport (1 of 2) this) // {{{
+( local TestReport(1->2:Bool;$end;(1 of 1,2) this, $list(Int)(2 of 1 pure,2) rstart, $list(Int)(2 of 1 pure,2) rend) // {{{
+  ( rend[1]<<^pop;
+    rend[1]>>
+    {^nil:
+      rstart[1]<<^end;
+      this[2]<<false;
+     ^cons:
+      rend[1]>>r>>rtail;
+      rstart[1]<<^copy;
+      rstart[1]>>rs;
+      rtail[1]<<^copy;
+      rtail[1]>>re;
+      rstart[1]<<^snoc<<r;
+      rs[1]<<^append<<re;
+      rs[1]<<^copy;
+      rs[1]>>rs2;
+      xs = new xsafereport(2 of 2);
+      xs[1]<<rs<<true;
+      xs[1]>>safe1;
+      if safe1
+      then rstart[1]<<^end;
+           rtail[1]<<^end;
+           rs2[1]<<^end;
+           this[2]<<true;
+      else xs2=new xsafereport(2 of 2);
+           xs2[1]<<rs2<<false;
+           xs2[1]>>safe2;
+           if safe2
+           then rstart[1]<<^end;
+                rtail[1]<<^end;
+                this[2]<<true;
+           else TestReport(this,rstart,rtail);
+    }
+  ) // }}}
+  this[2]>>report;
+  rs=new list(2 of 2);
+  rs<<Int;
+  TestReport(this,rs,report);
+) // }}}
+|
+#define $safereportstr \
+  2->1: String; \
+  1->2: Bool; \
+  $end;
+global $safereportstr safereportstr(1,2);
+local service SafeReportStrService(safereportstr (1 of 2) this) // {{{
+( local MakeReport(1->2:Bool;$end;(1 of 1,2) this, $list(Int)(2 of 1 pure,2) rs, String rstr) // {{{
+  ( sf=new strfind(2 of 2);
+    sf[1]<<rstr<<" ";
+    sf[1]>>pos;
+    if pos<=0
+    then sr1=new safereport(2 of 2);
+         sr1[1]<<rs;
+         sr1[1]>>safe1;
+         this[2]<<safe1;
+    else String r1str=rstr/pos;
+         Int r1=0;
+         STRING2INT(r1str,r1);
+         String rstr2=rstr%(pos+1);
+         rs[1]<<^snoc<<r1;
+         MakeReport(this,rs,rstr2);
+  ) // }}}
+  this[2]>>rstr;
+  rs=new list(2 of 2);
+  rs<<Int;
+  MakeReport(this,rs,rstr+" ");
 ) // }}}
 |
 // Process data and print result
@@ -105,57 +164,12 @@ local Process($list(String)(2 of 1 pure,2) reports, Int countsafe) // {{{
     c[1]<<^str<<"Result: "<<^int<<countsafe<<^nl<<^end;
    ^cons:
     reports[1]>>report>>rest;
-    pi=new popint(2 of 2);
-    pi[1]<<report;
-    pi[1]>>
-    {^nil:
-      c=new console(2 of 2);
-      c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
-      Process(rest,countsafe);
-     ^cons:
-      pi[1]>>r1>>rtail;
-      pi2=new popint(2 of 2);
-      pi2[1]<<rtail;
-      pi2[1]>>
-      {^nil:
-        c=new console(2 of 2);
-        c[1]<<^str<<"Bad report: "+report<<^nl<<^end;
-        Process(rest,countsafe);
-       ^cons:
-         pi2[1]>>r2>>rrtail;
-         local ProcessReport($list(String)(2 of 1 pure,2) reports, String rs, Bool increasing, Int prev) // {{{
-         ( sf=new strfind(2 of 2);
-           sf[1]<<rs<<" ";
-           sf[1]>>pos;
-           if pos<=0
-           then c=new console(2 of 2);
-                c[1]<<^str<<" Safe"<<^nl<<^end;
-                Process(reports,countsafe+1); // Safe
-           else String rstr=rs/pos;
-                Int r=0;
-                STRING2INT(rstr,r);
-                String rrs=rs%(pos+1);
-                c=new console(2 of 2);
-                c[1]<<^str<<" "<<^int<<r<<^end;
-                if not increasing
-                then // Decreasing
-                  if (r+1<=prev) and (prev<=r+3)
-                  then ProcessReport(reports,rrs,increasing,r);
-                  else c=new console(2 of 2);
-                       c[1]<<^str<<" Unsafe"<<^nl<<^end;
-                       Process(reports,countsafe); // Unsafe
-                else // Increasing
-                  if (prev+1<=r) and (r<=prev+3)
-                  then ProcessReport(reports,rrs,increasing,r);
-                  else c=new console(2 of 2);
-                       c[1]<<^str<<" Unsafe"<<^nl<<^end;
-                       Process(reports,countsafe); // Unsafe
-         ) // }}}
-         c=new console(2 of 2);
-         c[1]<<^int<<r1<<^end;
-         ProcessReport(rest,rtail+" ",r1<=r2,r1);
-      }
-    }
+    srs=new safereportstr(2 of 2);
+    srs[1]<<report;
+    srs[1]>>safe;
+    if safe
+    then Process(rest,countsafe+1);
+    else Process(rest,countsafe);
   }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
