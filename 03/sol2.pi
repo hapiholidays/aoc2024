@@ -1,0 +1,109 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines, Int sum, Bool enabeled) // {{{
+( lines[1]<<^pop;
+  lines[1]>>
+  {^nil:
+    c=new console(2 of 2);
+    c[1]<<^str<<"Result: "<<^int<<sum<<^nl<<^end;
+   ^cons:
+    local FindMuls($list(String)(2 of 1 pure,2) lines, String line, Int sum, Bool enabeled) // {{{
+    ( debug("FindMul "+line);
+      if line&^length<=7
+      then Process(lines,sum,enabeled); // Line empty - no space for command
+      else if not (line/4="mul(")
+      then if not (line/7="don't()")
+           then if not (line/4)="do()"
+                then FindMuls(lines,line%1,sum); // First char ignored
+                else 
+      else local FindN1($list(String)(2 of 1 pure,2) lines, String line, String n1) // {{{
+           ( debug("FindN1 "+line+" - " +n1);
+           if line&^length<=2
+             then Process(lines,sum,enabeled); // Line empty
+             else if (("0"&0)<=(line&0)) and ((line&0)<=("9"&0))
+             then FindN1(lines,line%1,n1+line/1); // Part of n1
+             else if n1&^length<=0
+             then FindMuls(lines,line,sum); // Missingfirst n1
+             else if not ((line&0)=(","&0))
+             then FindMuls(lines,line,sum); // Missing ","
+             else local FindN2($list(String)(2 of 1 pure,2) lines, String line, String n2) // {{{
+             ( debug("FindN2 "+line+" - " +n2);
+               if line&^length<=0
+               then Process(lines,sum,enabeled); // Line empty
+               else if (("0"&0)<=(line&0)) and ((line&0)<=("9"&0))
+               then FindN2(lines,line%1,n2+line/1); // Part of n2
+               else if not ((line&0)=(")"&0))
+               then FindMuls(lines,line,sum); // Missing ")"
+               else if n2&^length<=0
+               then FindMuls(lines,line%1,sum); // Missing n2
+               else Int n1int=0;
+                    STRING2INT(n1,n1int);
+                    Int n2int=0;
+                    STRING2INT(n2,n2int);
+                    FindMuls(lines,line%1,sum+n1int*n2int); 
+             ) // }}}
+             FindN2(lines,line%1,"");
+           ) // }}}
+           FindN1(lines,line%4,"");
+    ) // }}}
+    lines[1]>>line>>rest;
+    FindMuls(rest,line,sum,enabeled);
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines,0,true);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
