@@ -1,7 +1,7 @@
 # December 3rd: Corrupt program evaluatiopn
 
 ## Part 1
-Given a chunk of corrupt doce try to evaluate, by locating all mul(n1,n2) statements, and sum all the resultes (n1*n2).
+Given a chunk of corrupt code try to evaluate, by locating all mul(n1,n2) statements, and sum all the resultes (n1*n2).
 
 ### Implementation
 This would be easy if Hapi had regular expressions, unfortunately the lazy git implementing hapi and its standard lib has not gotten around to this yes, so we have to do our own dirty work.
