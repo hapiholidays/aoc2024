@@ -9,54 +9,57 @@
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
 // Process data and print result
-local Process($list(String)(2 of 1 pure,2) lines, Int sum, Bool enabeled) // {{{
+local Process($list(String)(2 of 1 pure,2) lines, Int sum, Bool on) // {{{
 ( lines[1]<<^pop;
   lines[1]>>
   {^nil:
     c=new console(2 of 2);
     c[1]<<^str<<"Result: "<<^int<<sum<<^nl<<^end;
    ^cons:
-    local FindMuls($list(String)(2 of 1 pure,2) lines, String line, Int sum, Bool enabeled) // {{{
-    ( debug("FindMul "+line);
-      if line&^length<=7
-      then Process(lines,sum,enabeled); // Line empty - no space for command
+    local FindMuls($list(String)(2 of 1 pure,2) lines, String line, Int sum, Bool on) // {{{
+    ( //debug("FindMul "+line+(if on then " ON" else " OFF"));
+      if line&^length<=4
+      then Process(lines,sum,on); // Line empty - no space for command
       else if not (line/4="mul(")
       then if not (line/7="don't()")
-           then if not (line/4)="do()"
-                then FindMuls(lines,line%1,sum); // First char ignored
-                else 
+      then if not (line/4="do()")
+      then FindMuls(lines,line%1,sum,on); // No Match - skip char
+      else FindMuls(lines,line%4,sum,true); // do()
+      else FindMuls(lines,line%7,sum,false); // don't()
       else local FindN1($list(String)(2 of 1 pure,2) lines, String line, String n1) // {{{
-           ( debug("FindN1 "+line+" - " +n1);
+           ( //debug("FindN1 "+line+" - " +n1);
            if line&^length<=2
-             then Process(lines,sum,enabeled); // Line empty
+             then Process(lines,sum,on); // Line empty
              else if (("0"&0)<=(line&0)) and ((line&0)<=("9"&0))
              then FindN1(lines,line%1,n1+line/1); // Part of n1
              else if n1&^length<=0
-             then FindMuls(lines,line,sum); // Missingfirst n1
+             then FindMuls(lines,line,sum,on); // Missingfirst n1
              else if not ((line&0)=(","&0))
-             then FindMuls(lines,line,sum); // Missing ","
+             then FindMuls(lines,line,sum,on); // Missing ","
              else local FindN2($list(String)(2 of 1 pure,2) lines, String line, String n2) // {{{
-             ( debug("FindN2 "+line+" - " +n2);
+             ( //debug("FindN2 "+line+" - " +n2);
                if line&^length<=0
-               then Process(lines,sum,enabeled); // Line empty
+               then Process(lines,sum,on); // Line empty
                else if (("0"&0)<=(line&0)) and ((line&0)<=("9"&0))
                then FindN2(lines,line%1,n2+line/1); // Part of n2
                else if not ((line&0)=(")"&0))
-               then FindMuls(lines,line,sum); // Missing ")"
+               then FindMuls(lines,line,sum,on); // Missing ")"
                else if n2&^length<=0
-               then FindMuls(lines,line%1,sum); // Missing n2
+               then FindMuls(lines,line%1,sum,on); // Missing n2
                else Int n1int=0;
                     STRING2INT(n1,n1int);
                     Int n2int=0;
                     STRING2INT(n2,n2int);
-                    FindMuls(lines,line%1,sum+n1int*n2int); 
+                    if on
+                    then FindMuls(lines,line%1,sum+n1int*n2int,on); 
+                    else FindMuls(lines,line%1,sum,on); 
              ) // }}}
              FindN2(lines,line%1,"");
            ) // }}}
            FindN1(lines,line%4,"");
     ) // }}}
     lines[1]>>line>>rest;
-    FindMuls(rest,line,sum,enabeled);
+    FindMuls(rest,line,sum,on);
   }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
