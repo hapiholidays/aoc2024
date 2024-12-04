@@ -6,7 +6,7 @@ Given a table of letters find the number of occurances of "XMAS" in any of the 8
 ### Implementation
 There are many ways to implement this, but under time preassure I opted for the
 simple but not very compact or maintainable solution to implement one service
-for each direction
+for each direction (by implementing one, and copying and modifying it seven times)
  - wordsearchLR: Searching horizontal text direction
  - wordsearchRL: Searching reverse horizontal text direction
  - wordsearchUD: Searching vertical text direction
