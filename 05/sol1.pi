@@ -17,18 +17,18 @@
 global $parseupd parseupd(1 pure,2);
 local pure service Service(parseupd (1 of 2) this) // {{{
 ( local pure Parse($parseupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) rupd, String data) // {{{
-  ( sf=new strfind(2 of 2);
-    sf[1]<<data<<",";
-    sf[1]>>pos;
-    if pos<=0
-    then // End of data (or error)
+  ( if data&^length<=0
+    then // No more items
       upd=new revlist(2 of 2);
       upd<<Int;
       upd[1]<<rupd;
       this[2]<<upd;
-    else
-      String nstr=data/pos;
-      String rest=data%(pos+1);
+    else 
+      sf=new strfind(2 of 2);
+      sf[1]<<data<<",";
+      sf[1]>>pos;
+      String nstr=if 1<=pos then data/pos else data;
+      String rest=if 1<=pos then data%(pos+1) else "";
       Int n=0;
       STRING2INT(nstr,n) pure;
       rupd[1]<<^cons<<n;
@@ -50,78 +50,80 @@ local pure service Service(parseupd (1 of 2) this) // {{{
   $checkupdres
 global $checkupd checkupd(1 pure,2);
 local pure service Service(checkupd (1 of 2) this) // {{{
-( local pure Check($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs, Int pos) // {{{
-  ( local pure OK($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs) // {{{
-    ( upd[1]<<^length;
-      upd[1]>>len;
-      Int mid=len/2;
-      upd[1]<<^get<<mid;
-      upd[1]>>
-      {^val: upd[1]>>v;
-             this[2]<<v;
-             upd[1]<<^end;
-             ruleas[1]<<^end;
-             rulebs[1]<<^end;
-       ^err: // Should not happen
-             upd[1]>>err;
-             this[2]<<0-1;
-             upd[1]<<^end;
-             ruleas[1]<<^end;
-             rulebs[1]<<^end;
-      }
-    ) // }}}
-    upd[1]<<^get<<pos;
+( local pure OK($checkupdres(1 of 1 pure ,2) this, $list(Int)(2 of 1 pure,2) upd) // {{{
+  ( upd[1]<<^length;
+    upd[1]>>len;
+    Int mid=len/2;
+    upd[1]<<^get<<mid;
     upd[1]>>
-    {^err: upd[1]>>err; OK(this,upd,ruleas,rulebs);
-     ^val: upd[1]>>a;
-           upd[1]<<^get<<pos+1;
-           upd[1]>>
-           {^err: upd[1]>>err; OK(this,upd,ruleas,rulebs);
-            ^val: upd[1]>>b;
-                  local pure CheckRule($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs, Int rpos) // {{{
-                  ( ruleas[1]<<^get<<rpos;
-                    ruleas[1]>>
-                    {^err: ruleas[1]>>err; Check(this,upd,ruleas,rulebs,pos+1);
-                     ^val:
-                      ruleas[1]>>ra;
-                      rulebs[1]<<^get<<rpos;
-                      rulebs[1]>>
-                      {^err: rulebs[1]>>err; Check(this,upd,ruleas,rulebs,pos+1);
-                       ^val:
-                        rulebs[1]>>rb;
+    {^val: upd[1]>>v;
+           this[2]<<v;
+           upd[1]<<^end;
+     ^err: // Should not happen
+           upd[1]>>err;
+           this[2]<<0-1;
+           upd[1]<<^end;
+    }
+  ) // }}}
+    local pure CheckRules($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs) // {{{
+  ( ruleas[1]<<^pop;
+    ruleas[1]>>
+    {^nil: rulebs[1]<<^end; OK(this,upd);
+     ^cons:
+      ruleas[1]>>ra>>ratail;
+      rulebs[1]<<^pop;
+      rulebs[1]>>
+      {^nil: ratail[1]<<^end; OK(this,upd);
+       ^cons:
+        rulebs[1]>>rb>>rbtail;
+        local pure CheckRule($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs, Int posa, Int posb) // {{{
+        ( upd[1]<<^get<<posa;
+          upd[1]>>
+          {^err: upd[1]>>err; CheckRules(this,upd,ruleas,rulebs);
+           ^val: upd[1]>>a;
+                 upd[1]<<^get<<posb;
+                 upd[1]>>
+                 {^err: upd[1]>>err; CheckRule(this,upd,ruleas,rulebs,posa+1,posa+2);
+                  ^val: upd[1]>>b;
                         if (ra=a) and (rb=b)
-                        then Check(this,upd,ruleas,rulebs,pos+1); // Assume rules consistent
+                        then CheckRules(this,upd,ruleas,rulebs); // Assume rules consistent
                         else if (ra=b) and (rb=a)
                         then this[2]<<0; // Rule not OK, sending 0
                              upd[1]<<^end;
                              ruleas[1]<<^end;
                              rulebs[1]<<^end;
-                        else CheckRule(this,upd,ruleas,rulebs,rpos+1);
-                      }
-                    }
-                  ) // }}}
-                  CheckRule(this,upd,ruleas,rulebs,0);
-           }
+                        else CheckRule(this,upd,ruleas,rulebs,posa,posb+1);
+                 }
+          }
+        ) // }}}
+        CheckRule(this,upd,ratail,rbtail,0,1);
+      }
     }
   ) // }}}
   this[2]>>updstr>>ruleas>>rulebs;
   pupd=new parseupd(2 of 2);
   pupd[1]<<updstr;
   pupd[1]>>upd;
-  Check(this,upd,ruleas,rulebs,0);
+  CheckRules(this,upd,ruleas,rulebs);
 ) // }}}
 |
-// Process data and print result
-local Process($list(Int)(2 of 1 pure,2) ruleas, $list(Int)(2 of 1 pure,2) rulebs, $list(String)(2 of 1 pure,2) lines, Int sum) // {{{
-( lines[1]<<^pop;
-  lines[1]>>
+#define $checkupds \
+  2->1:$list(String)(2 of 1 pure,2); \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $checkupdres
+global $checkupds checkupds(1 pure,2);
+local pure service Service(checkupds (1 of 2) this) // {{{
+( this[2]>>upds>>ruleas>>rulebs;
+  upds[1]<<^pop;
+  upds[1]>>
   {^nil:
-    c=new console(2 of 2);
-    c[1]<<^str<<"Result: "<<^int<<sum<<^nl<<^end;
+    this[2]<<0;
     ruleas[1]<<^end;
     rulebs[1]<<^end;
    ^cons:
-    lines[1]>>updstr>>ltail;
+    upds[1]>>updstr>>rest;
+    // First call checkupd on updstr
     cupd=new checkupd(2 of 2);
     ruleas[1]<<^copy;
     ruleas[1]>>ruleas_cpy;
@@ -129,10 +131,23 @@ local Process($list(Int)(2 of 1 pure,2) ruleas, $list(Int)(2 of 1 pure,2) rulebs
     rulebs[1]>>rulebs_cpy;
     cupd[1]<<updstr<<ruleas_cpy<<rulebs_cpy;
     cupd[1]>>val;
-    c=new console(2 of 2);
-    c[1]<<^str<<"Update: "+updstr+" has result "<<^int<<val<<^nl<<^end;
-    Process(ruleas,rulebs,ltail,sum+val);
+    // Then call recursively on rest
+    sumrest=new checkupds(2 of 2);
+    sumrest[1]<<rest<<ruleas<<rulebs;
+    HOST("cout << ((libpi::Int*)",val,".get())->ToString()<<endl;") pure;
+    sumrest[1]>>sum_rest;
+    // Return sum of rest plus valure for current
+    this[2]<<val+sum_rest;
   }
+) // }}}
+|
+// Process data and print result
+local Process($list(Int)(2 of 1 pure,2) ruleas, $list(Int)(2 of 1 pure,2) rulebs, $list(String)(2 of 1 pure,2) lines) // {{{
+( cupds=new checkupds(2 of 2);
+  cupds[1]<<lines<<ruleas<<rulebs;
+  cupds[1]>>sum;
+  c=new console(2 of 2);
+  c[1]<<^str<<"Result: "<<^int<<sum<<^nl<<^end;
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
 local ProcessFile($infile(2 of 1,2) fin) // {{{
@@ -148,7 +163,7 @@ local ProcessFile($infile(2 of 1,2) fin) // {{{
       else lines[1]<<^cons<<line;
            ProcessFileUpdates(fin,ruleas,rulebs,lines);
      ^None:
-      Process(ruleas,rulebs,lines,0);
+      Process(ruleas,rulebs,lines);
     }
   ) // }}}
   local ProcessFileRules($infile(2 of 1,2) fin, $list(Int)(2 of 1 pure,2) ruleas, $list(Int)(2 of 1 pure,2) rulebs) // {{{
