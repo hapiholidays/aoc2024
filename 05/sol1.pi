@@ -1,0 +1,221 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $parseupdres \
+  1->2:$list(Int)(2 of 1 pure,2); \
+  $end;
+#define $parseupd \
+  2->1:String; \
+  $parseupdres
+global $parseupd parseupd(1 pure,2);
+local pure service Service(parseupd (1 of 2) this) // {{{
+( local pure Parse($parseupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) rupd, String data) // {{{
+  ( sf=new strfind(2 of 2);
+    sf[1]<<data<<",";
+    sf[1]>>pos;
+    if pos<=0
+    then // End of data (or error)
+      upd=new revlist(2 of 2);
+      upd<<Int;
+      upd[1]<<rupd;
+      this[2]<<upd;
+    else
+      String nstr=data/pos;
+      String rest=data%(pos+1);
+      Int n=0;
+      STRING2INT(nstr,n) pure;
+      rupd[1]<<^cons<<n;
+      Parse(this,rupd,rest);
+  ) // }}}
+  this[2]>>data;
+  rupd=new list(2 of 2);
+  rupd<<Int;
+  Parse(this,rupd,data);
+) // }}}
+|
+#define $checkupdres \
+  1->2:Int; \
+  $end;
+#define $checkupd \
+  2->1:String; \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $checkupdres
+global $checkupd checkupd(1 pure,2);
+local pure service Service(checkupd (1 of 2) this) // {{{
+( local pure Check($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs, Int pos) // {{{
+  ( local pure OK($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs) // {{{
+    ( upd[1]<<^length;
+      upd[1]>>len;
+      Int mid=len/2;
+      upd[1]<<^get<<mid;
+      upd[1]>>
+      {^val: upd[1]>>v;
+             this[2]<<v;
+             upd[1]<<^end;
+             ruleas[1]<<^end;
+             rulebs[1]<<^end;
+       ^err: // Should not happen
+             upd[1]>>err;
+             this[2]<<0-1;
+             upd[1]<<^end;
+             ruleas[1]<<^end;
+             rulebs[1]<<^end;
+      }
+    ) // }}}
+    upd[1]<<^get<<pos;
+    upd[1]>>
+    {^err: upd[1]>>err; OK(this,upd,ruleas,rulebs);
+     ^val: upd[1]>>a;
+           upd[1]<<^get<<pos+1;
+           upd[1]>>
+           {^err: upd[1]>>err; OK(this,upd,ruleas,rulebs);
+            ^val: upd[1]>>b;
+                  local pure CheckRule($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs, Int rpos) // {{{
+                  ( ruleas[1]<<^get<<rpos;
+                    ruleas[1]>>
+                    {^err: ruleas[1]>>err; Check(this,upd,ruleas,rulebs,pos+1);
+                     ^val:
+                      ruleas[1]>>ra;
+                      rulebs[1]<<^get<<rpos;
+                      rulebs[1]>>
+                      {^err: rulebs[1]>>err; Check(this,upd,ruleas,rulebs,pos+1);
+                       ^val:
+                        rulebs[1]>>rb;
+                        if (ra=a) and (rb=b)
+                        then Check(this,upd,ruleas,rulebs,pos+1); // Assume rules consistent
+                        else if (ra=b) and (rb=a)
+                        then this[2]<<0; // Rule not OK, sending 0
+                             upd[1]<<^end;
+                             ruleas[1]<<^end;
+                             rulebs[1]<<^end;
+                        else CheckRule(this,upd,ruleas,rulebs,rpos+1);
+                      }
+                    }
+                  ) // }}}
+                  CheckRule(this,upd,ruleas,rulebs,0);
+           }
+    }
+  ) // }}}
+  this[2]>>updstr>>ruleas>>rulebs;
+  pupd=new parseupd(2 of 2);
+  pupd[1]<<updstr;
+  pupd[1]>>upd;
+  Check(this,upd,ruleas,rulebs,0);
+) // }}}
+|
+// Process data and print result
+local Process($list(Int)(2 of 1 pure,2) ruleas, $list(Int)(2 of 1 pure,2) rulebs, $list(String)(2 of 1 pure,2) lines, Int sum) // {{{
+( lines[1]<<^pop;
+  lines[1]>>
+  {^nil:
+    c=new console(2 of 2);
+    c[1]<<^str<<"Result: "<<^int<<sum<<^nl<<^end;
+    ruleas[1]<<^end;
+    rulebs[1]<<^end;
+   ^cons:
+    lines[1]>>updstr>>ltail;
+    cupd=new checkupd(2 of 2);
+    ruleas[1]<<^copy;
+    ruleas[1]>>ruleas_cpy;
+    rulebs[1]<<^copy;
+    rulebs[1]>>rulebs_cpy;
+    cupd[1]<<updstr<<ruleas_cpy<<rulebs_cpy;
+    cupd[1]>>val;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Update: "+updstr+" has result "<<^int<<val<<^nl<<^end;
+    Process(ruleas,rulebs,ltail,sum+val);
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFileUpdates($infile(2 of 1,2) fin, $list(Int)(2 of 1 pure,2) ruleas, $list(Int)(2 of 1 pure,2) rulebs, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      debug("Update: "+line);
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFileUpdates(fin,ruleas,rulebs,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFileUpdates(fin,ruleas,rulebs,lines);
+     ^None:
+      Process(ruleas,rulebs,lines,0);
+    }
+  ) // }}}
+  local ProcessFileRules($infile(2 of 1,2) fin, $list(Int)(2 of 1 pure,2) ruleas, $list(Int)(2 of 1 pure,2) rulebs) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      debug("Rule: "+line);
+      // Ignore empty lines
+      if line&^length<=1
+      then lines=new list(2 of 2);
+           lines<<String;
+           ProcessFileUpdates(fin,ruleas,rulebs,lines);
+      else sf=new strfind(2 of 2);
+           sf[1]<<line<<"|";
+           sf[1]>>pos;
+           //c=new console(2 of 2);
+           //c[1]<<^str<<"Pos: "<<^int<<pos<<^nl;
+           String stra=line/pos;
+           //c[1]<<^str<<"STRA: "<<^str<<stra<<^nl;
+           Int a=0;
+           STRING2INT(stra,a);
+           //c[1]<<^str<<"A: "<<^int<<a<<^nl;
+           String strb=line%(pos+1);
+           //c[1]<<^str<<"STRB: "<<^str<<strb<<^nl;
+           Int b=0;
+           STRING2INT(strb,b);
+           //c[1]<<^str<<"B: "<<^int<<b<<^nl;
+           //c[1]<<^str<<"Parsed rule: "<<^int<<a<<^str<<" before "<<^int<<b<<^nl<<^end;
+           ruleas[1]<<^cons<<a;
+           rulebs[1]<<^cons<<b;
+           ProcessFileRules(fin,ruleas,rulebs);
+           // Fixme: Handle errors (no | or first or last or not digits)
+     ^None:
+      debug("Error: Reached end of file in ProcessFileRules");
+      ruleas[1]<<^end;
+      rulebs[1]<<^end;
+    }
+  ) // }}}
+  ruleas=new list(2 of 2);
+  ruleas<<Int;
+  rulebs=new list(2 of 2);
+  rulebs<<Int;
+  ProcessFileRules(fin,ruleas,rulebs);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
