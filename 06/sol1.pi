@@ -1,0 +1,82 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines, Int sum) // {{{
+( local ParseMap($list(String)(2 of 1 pure,2) lines, $list(Int)(2 of 1 pure,2) xs, $list(Int)(2 of 1 pure,2) ys, Int posx, Int posy, Int y) // {{{
+  ( local ParseMapLine($list(String)(2 of 1 pure,2) lines, $list(Int)(2 of 1 pure,2) xs, $list(Int)(2 of 1 pure,2) ys, String line, Int posx, Int posy, Int x) // {{{
+    ( if line&^length<=x
+      then ParseMap(lines,xs,ys,posx,posy,y+1);
+      else if (line&x)=("#"&0)
+      then xs[1]<<^cons<<x;
+           ys[1]<<^cons<<y;
+           ParseMapLine(lines,xs,ys,line,posx,posy,x+1);
+      else if (line&x)=("^"&0)
+      then ParseMapLine(lines,xs,ys,line,x,y,x+1);
+      else ParseMapLine(lines,xs,ys,line,posx,posy,x+1);
+    ) // }}}
+    lines[1]<<^pop;
+    lines[1]>>
+    {^nil: FindPath(xs,ysm
+  ) // }}}
+  xs=new list(2 of 2);
+  xs<<Int;
+  ys=new list(2 of 2);
+  ys<<Int;
+  ParseMap(lines,xs,ys,0);
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines,0);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
