@@ -1,6 +1,7 @@
 #include <sys/args.pi>
 #include <sys/file.pi>
 #include <struct/list.pi>
+#include <struct/set.pi>
 #include <console.pi>
 #include <convert.pi>
 #include "listutils.pi"
@@ -8,67 +9,247 @@
 
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define $wordsearch \
-  2->1: $list(String)(2 of 1 pure,2); \
-  1->2: Int; \
+#define $parsemapres \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  1->2:Int; \
   $end;
-global $wordsearch wordsearchXMAS(1 pure,2);
-local pure service WordSearchService(wordsearchXMAS (1 of 2) this) // {{{
-( local pure WS(1->2:Int;$end;(1 of 1 pure,2) this, $list(String)(2 of 1 pure,2) puzzle, String line1, String line2, String line3, Int posx, Int count) // {{{
-  ( local pure ERR(1->2:Int;$end;(1 of 1 pure,2) this, $list(String)(2 of 1 pure,2) puzzle) // {{{
-    ( puzzle[1]<<^pop;
-      puzzle[1]>>
-      {^nil: this[2]<<count;
-       ^cons: puzzle[1]>>line4>>ptail;
-              WS(this,ptail,line2,line3,line4,0,count);
-      }
+#define $parsemap \
+  2->1:$list(String)(2 of 1 pure,2); \
+  $parsemapres
+global $parsemap parsemap(1 pure,2);
+local pure service Service(parsemap (1 of 2) this) // {{{
+( local pure ParseMap($parsemapres(1 of 1 pure,2) this, $list(String)(2 of 1 pure,2) lines, $set(Int)(2 of 1 pure,2) blocks, Int guard, Int y) // {{{
+  ( local pure ParseMapLine($parsemapres(1 of 1 pure,2) this, $list(String)(2 of 1 pure,2) lines, $set(Int)(2 of 1 pure,2) blocks, String line, Int guard, Int x) // {{{
+    ( if line&^length<=x
+      then ParseMap(this,lines,blocks,guard,y+1);
+      else if (line&x)=("#"&0)
+      then blocks[1]<<^insert<<y*1000+x;
+           ParseMapLine(this,lines,blocks,line,guard,x+1);
+      else if (line&x)=("^"&0)
+      then ParseMapLine(this,lines,blocks,line,1000000+1000*y+x,x+1);
+      else if (line&x)=("v"&0)
+      then ParseMapLine(this,lines,blocks,line,2000000+1000*y+x,x+1);
+      else if (line&x)=("<"&0)
+      then ParseMapLine(this,lines,blocks,line,3000000+1000*y+x,x+1);
+      else if (line&x)=(">"&0)
+      then ParseMapLine(this,lines,blocks,line,4000000+1000*y+x,x+1);
+      else ParseMapLine(this,lines,blocks,line,guard,x+1);
     ) // }}}
-    if (line1&^length<=posx+2) or (line2&^length<=posx+2) or (line3&^length<=posx+2)
-    then ERR(this,puzzle);
-    else if ((line2%(posx+1))/1="A") and
-            ((line1%posx)/1="M") and ((line3%(posx+2))/1="S") and
-            ((line1%(posx+2))/1="M") and ((line3%posx)/1="S")
-    then WS(this,puzzle,line1,line2,line3,posx+1,count+1);
-    else if ((line2%(posx+1))/1="A") and
-            ((line1%posx)/1="S") and ((line3%(posx+2))/1="M") and
-            ((line1%(posx+2))/1="M") and ((line3%posx)/1="S")
-    then WS(this,puzzle,line1,line2,line3,posx+1,count+1);
-    else if ((line2%(posx+1))/1="A") and
-            ((line1%posx)/1="M") and ((line3%(posx+2))/1="S") and
-            ((line1%(posx+2))/1="S") and ((line3%posx)/1="M")
-    then WS(this,puzzle,line1,line2,line3,posx+1,count+1);
-    else if ((line2%(posx+1))/1="A") and
-            ((line1%posx)/1="S") and ((line3%(posx+2))/1="M") and
-            ((line1%(posx+2))/1="S") and ((line3%posx)/1="M")
-    then WS(this,puzzle,line1,line2,line3,posx+1,count+1);
-    else WS(this,puzzle,line1,line2,line3,posx+1,count);
+    lines[1]<<^pop;
+    lines[1]>>
+    {^nil: this[2]<<blocks<<guard;
+     ^cons: lines[1]>>line>>ltail;
+            ParseMapLine(this,ltail,blocks,line,guard,0);
+    }
   ) // }}}
-  this[2]>>puzzle;
-  puzzle[1]<<^pop;
-  puzzle[1]>>
-  {^nil: this[2]<<0;
-   ^cons: puzzle[1]>>line1>>puzzle1;
-          puzzle1[1]<<^pop;
-          puzzle1[1]>>
-          {^nil: this[2]<<0;
-           ^cons: puzzle1[1]>>line2>>puzzle2;
-                  puzzle2[1]<<^pop;
-                  puzzle2[1]>>
-                  {^nil: this[2]<<0;
-                   ^cons: puzzle2[1]>>line3>>puzzle3;
-                          WS(this,puzzle3,line1,line2,line3,0,0);
-                  }
-          }
+  this[2]>>lines;
+  blocks=new set(2 of 2);
+  blocks<<Int;
+  blocks[1]<<stdorder_Int;
+  ParseMap(this,lines,blocks,0,0);
+) // }}}
+|
+#define $simguardres \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+#define $simguard \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:Int; \
+  $simguardres
+#define ispure pure
+global $simguard simguard(1 ispure,2);
+local ispure service Service(simguard (1 of 2) this) // {{{
+( local ispure Sim($simguardres(1 of 1 ispure,2) this, $set(Int)(2 of 1 pure,2) blocks, $set(Int)(2 of 1 pure,2) trail, Int guard, Int maxx, Int maxy)
+  ( // Debug
+    //c=new console(2 of 2);
+    //c[1]<<^str<<"Sim "<<^int<<guard<<^nl<<^end;
+    // Add guard pos
+    trail[1]<<^insert<<guard-(guard/1000000)*1000000;
+    // Extract guard state
+    Int dir=guard/1000000;
+    Int x=guard-(guard/1000)*1000;
+    Int y=(guard-(guard/1000000)*1000000)/1000;
+    local ispure Done($simguardres(1 of 1 ispure,2) this, $set(Int)(2 of 1 pure,2) blocks, $set(Int)(2 of 1 pure,2) trail) // {{{
+    ( blocks[1]<<^end;
+      this[2]<<trail;
+    ) // }}}
+    if dir=1 // up
+    then if y<=0
+         then Done(this,blocks,trail);
+         else blocks[1]<<^member<<(y-1)*1000+x;
+              blocks[1]>>blocked;
+              if blocked
+              then Sim(this,blocks,trail,4000000+y*1000+x,maxx,maxy);
+              else Sim(this,blocks,trail,1000000+(y-1)*1000+x,maxx,maxy);
+    else if dir=2 // down
+    then if maxy<=(y+1)
+         then Done(this,blocks,trail);
+         else blocks[1]<<^member<<(y+1)*1000+x;
+              blocks[1]>>blocked;
+              if blocked
+              then Sim(this,blocks,trail,3000000+y*1000+x,maxx,maxy);
+              else Sim(this,blocks,trail,2000000+(y+1)*1000+x,maxx,maxy);
+    else if dir=3 // left
+    then if x<=0
+         then Done(this,blocks,trail);
+         else blocks[1]<<^member<<y*1000+x-1;
+              blocks[1]>>blocked;
+              if blocked
+              then Sim(this,blocks,trail,1000000+y*1000+x,maxx,maxy);
+              else Sim(this,blocks,trail,3000000+y*1000+x-1,maxx,maxy);
+    else // right
+         if maxx<=(x+1)
+         then Done(this,blocks,trail);
+         else blocks[1]<<^member<<y*1000+x+1;
+              blocks[1]>>blocked;
+              if blocked
+              then Sim(this,blocks,trail,2000000+y*1000+x,maxx,maxy);
+              else Sim(this,blocks,trail,4000000+y*1000+x+1,maxx,maxy);
+  )
+  this[2]>>blocks>>guard>>maxx>>maxy;
+  trail=new set(2 of 2);
+  trail<<Int;
+  trail[1]<<stdorder_Int;
+  Sim(this,blocks,trail,guard,maxx,maxy);
+) // }}}
+|
+#define $isstuckres \
+  1->2:Bool; \
+  $end;
+#define $isstuck \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:Int; \
+  $isstuckres
+global $isstuck isstuck(1 ispure,2);
+local ispure service Service(isstuck (1 of 2) this) // {{{
+( local ispure Sim($isstuckres(1 of 1 ispure,2) this, $set(Int)(2 of 1 pure,2) blocks, $set(Int)(2 of 1 pure,2) trail, Int guard, Int maxx, Int maxy)
+  ( local ispure Done($isstuckres(1 of 1 ispure,2) this, $set(Int)(2 of 1 pure,2) blocks, $set(Int)(2 of 1 pure,2) trail,Bool res) // {{{
+    ( blocks[1]<<^end;
+      trail[1]<<^end;
+      this[2]<<res;
+    ) // }}}
+    trail[1]<<^member<<guard;
+    trail[1]>>loop;
+    if loop
+    then Done(this,blocks,trail,true);
+    else
+      // Debug
+      //c=new console(2 of 2);
+      //c[1]<<^str<<"Sim "<<^int<<guard<<^nl<<^end;
+      // Add guard pos
+      trail[1]<<^insert<<guard;
+      // Extract guard state
+      Int dir=guard/1000000;
+      Int x=guard-(guard/1000)*1000;
+      Int y=(guard-(guard/1000000)*1000000)/1000;
+      if dir=1 // up
+      then if y<=0
+           then Done(this,blocks,trail,false);
+           else blocks[1]<<^member<<(y-1)*1000+x;
+                blocks[1]>>blocked;
+                if blocked
+                then Sim(this,blocks,trail,4000000+y*1000+x,maxx,maxy);
+                else Sim(this,blocks,trail,1000000+(y-1)*1000+x,maxx,maxy);
+      else if dir=2 // down
+      then if maxy<=(y+1)
+           then Done(this,blocks,trail,false);
+           else blocks[1]<<^member<<(y+1)*1000+x;
+                blocks[1]>>blocked;
+                if blocked
+                then Sim(this,blocks,trail,3000000+y*1000+x,maxx,maxy);
+                else Sim(this,blocks,trail,2000000+(y+1)*1000+x,maxx,maxy);
+      else if dir=3 // left
+      then if x<=0
+           then Done(this,blocks,trail,false);
+           else blocks[1]<<^member<<y*1000+x-1;
+                blocks[1]>>blocked;
+                if blocked
+                then Sim(this,blocks,trail,1000000+y*1000+x,maxx,maxy);
+                else Sim(this,blocks,trail,3000000+y*1000+x-1,maxx,maxy);
+      else // right
+           if maxx<=(x+1)
+           then Done(this,blocks,trail,false);
+           else blocks[1]<<^member<<y*1000+x+1;
+                blocks[1]>>blocked;
+                if blocked
+                then Sim(this,blocks,trail,2000000+y*1000+x,maxx,maxy);
+                else Sim(this,blocks,trail,4000000+y*1000+x+1,maxx,maxy);
+  )
+  this[2]>>blocks>>guard>>maxx>>maxy;
+  trail=new set(2 of 2);
+  trail<<Int;
+  trail[1]<<stdorder_Int;
+  Sim(this,blocks,trail,guard,maxx,maxy);
+) // }}}
+|
+#define $countstuckres \
+  1->2:Int; \
+  $end;
+#define $countstuck \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:Int; \
+  $countstuckres
+global $countstuck countstuck(1 ispure,2);
+local ispure service Service(countstuck (1 of 2) this) // {{{
+( this[2]>>blocks>>trail>>guard>>maxx>>maxy;
+  trail[1]<<^pop;
+  trail[1]>>
+  {^nil:
+    this[2]<<0;
+    blocks[1]<<^end;
+   ^tree:
+    trail[1]>>pos>>t1>>t2;
+    blocks[1]<<^copy;
+    blocks[1]>>b1;
+    blocks[1]<<^copy;
+    blocks[1]>>b2;
+    blocks[1]<<^insert<<pos;
+    is0=new isstuck(2 of 2);
+    is0[1]<<blocks<<guard<<maxx<<maxy;
+    is0[1]>>stuck;
+    cs1=new countstuck(2 of 2);
+    cs1[1]<<b1<<t1<<guard<<maxx<<maxy;
+    cs1[1]>>s1;
+    cs2=new countstuck(2 of 2);
+    cs2[1]<<b2<<t2<<guard<<maxx<<maxy;
+    cs2[1]>>s2;
+    if stuck
+    then HOST("cout << \"+\" << flush;") pure; this[2]<<s1+s2+1;
+    else HOST("cout << \"-\" << flush;") pure; this[2]<<s1+s2;
   }
 ) // }}}
 |
 // Process data and print result
-local Process($list(String)(2 of 1 pure,2) lines, Int sum) // {{{
-( s_lr=new wordsearchXMAS(2 of 2);
-  s_lr[1]<<lines;
-  s_lr[1]>>count;
-  c=new console(2 of 2);
-  c[1]<<^str<<"Result: "<<^int<<count<<^nl<<^end;
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( lines[1]<<^length;
+  lines[1]>>maxy;
+  lines[1]<<^get<<0;
+  lines[1]>>
+  {^err: lines[1]>>err; lines[1]<<^end;
+         debug("Error: No lines");
+   ^val: lines[1]>>line;
+         Int maxx=line&^length;
+         pm=new parsemap(2 of 2);
+         pm[1]<<lines;
+         pm[1]>>blocks>>guard;
+         blocks[1]<<^copy;
+         blocks[1]>>blocks_cpy;
+         sg=new simguard(2 of 2);
+         sg[1]<<blocks_cpy<<guard<<maxx<<maxy;
+         sg[1]>>trail;
+         cs=new countstuck(2 of 2);
+         cs[1]<<blocks<<trail<<guard<<maxx<<maxy;
+         cs[1]>>count;
+         c=new console(2 of 2);
+         c[1]<<^str<<"Result: "<<^int<<count<<^nl<<^end;
+  }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
 local ProcessFile($infile(2 of 1,2) fin) // {{{
@@ -86,7 +267,7 @@ local ProcessFile($infile(2 of 1,2) fin) // {{{
       rlines=new revlist(2 of 2);
       rlines<<String;
       rlines[1]<<lines;
-      Process(rlines,0);
+      Process(rlines);
     }
   ) // }}}
   lines=new list(2 of 2);
