@@ -9,15 +9,15 @@
 
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define $parseupdres \
+#define $parsenumsres \
   1->2:$list(Int)(2 of 1 pure,2); \
   $end;
-#define $parseupd \
+#define $parsenums \
   2->1:String; \
-  $parseupdres
-global $parseupd parseupd(1 pure,2);
-local pure service Service(parseupd (1 of 2) this) // {{{
-( local pure Parse($parseupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) rupd, String data) // {{{
+  $parsenumsres
+global $parsenums parsenums(1 pure,2);
+local pure service Service(parsenums (1 of 2) this) // {{{
+( local pure Parse($parsenumsres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) rupd, String data) // {{{
   ( if data&^length<=0
     then // No more items
       upd=new revlist(2 of 2);
@@ -106,7 +106,7 @@ local Process($list(String)(2 of 1 pure,2) lines, Int sum) // {{{
     String resstr=line/pos;
     STRING2INT(resstr,res);
     String eq=line%(pos+2);
-    pu=new parseupd(2 of 2);
+    pu=new parsenums(2 of 2);
     pu[1]<<eq;
     pu[1]>>vals;
     debug("Testing equation: "+line);

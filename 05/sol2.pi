@@ -44,7 +44,7 @@ local pure service Service(parseupd (1 of 2) this) // {{{
   1->2:Int; \
   $end;
 #define $checkupd \
-  2->1:String; \
+  2->1:$list(Int)(2 of 1 pure,2); \
   2->1:$list(Int)(2 of 1 pure,2); \
   2->1:$list(Int)(2 of 1 pure,2); \
   $checkupdres
@@ -100,31 +100,37 @@ local pure service Service(checkupd (1 of 2) this) // {{{
       }
     }
   ) // }}}
-  this[2]>>updstr>>ruleas>>rulebs;
-  pupd=new parseupd(2 of 2);
-  pupd[1]<<updstr;
-  pupd[1]>>upd;
+  this[2]>>upd>>ruleas>>rulebs;
   CheckRules(this,upd,ruleas,rulebs);
 ) // }}}
 |
-global $checkupd fixupd(1 pure,2);
-local pure service Service(fixupd (1 of 2) this) // {{{
-( local pure OK($checkupdres(1 of 1 pure ,2) this, $list(Int)(2 of 1 pure,2) upd) // {{{
-  ( upd[1]<<^length;
-    upd[1]>>len;
-    Int mid=len/2;
-    upd[1]<<^get<<mid;
-    upd[1]>>
-    {^val: upd[1]>>v;
-           this[2]<<v;
-           upd[1]<<^end;
-     ^err: // Should not happen
-           upd[1]>>err;
-           this[2]<<0-1;
-           upd[1]<<^end;
-    }
+#define $improveupdres \
+  1->2:$list(Int)(2 of 1 pure,2); \
+  $end;
+#define $improveupd \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $improveupdres
+global $improveupd improveupd(1 pure,2);
+local pure service Service(improveupd (1 of 2) this) // {{{
+( local pure OK($improveupdres(1 of 1 pure ,2) this, $list(Int)(2 of 1 pure,2) upd) // {{{
+  ( this[2]<<upd;
+    //upd[1]<<^length;
+    //upd[1]>>len;
+    //Int mid=len/2;
+    //upd[1]<<^get<<mid;
+    //upd[1]>>
+    //{^val: upd[1]>>v;
+    //       this[2]<<v;
+    //       upd[1]<<^end;
+    // ^err: // Should not happen
+    //       upd[1]>>err;
+    //       this[2]<<0-1;
+    //       upd[1]<<^end;
+    //}
   ) // }}}
-    local pure CheckRules($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs) // {{{
+    local pure CheckRules($improveupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs) // {{{
   ( ruleas[1]<<^pop;
     ruleas[1]>>
     {^nil: rulebs[1]<<^end; OK(this,upd);
@@ -135,7 +141,7 @@ local pure service Service(fixupd (1 of 2) this) // {{{
       {^nil: ratail[1]<<^end; OK(this,upd);
        ^cons:
         rulebs[1]>>rb>>rbtail;
-        local pure CheckRule($checkupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs, Int posa, Int posb) // {{{
+        local pure CheckRule($improveupdres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) upd, $list(Int)(2 of 1 pure,2) ruleas,  $list(Int)(2 of 1 pure,2) rulebs, Int posa, Int posb) // {{{
         ( upd[1]<<^get<<posa;
           upd[1]>>
           {^err: upd[1]>>err; CheckRules(this,upd,ruleas,rulebs);
@@ -158,11 +164,65 @@ local pure service Service(fixupd (1 of 2) this) // {{{
       }
     }
   ) // }}}
-  this[2]>>updstr>>ruleas>>rulebs;
-  pupd=new parseupd(2 of 2);
-  pupd[1]<<updstr;
-  pupd[1]>>upd;
+  this[2]>>upd>>ruleas>>rulebs;
   CheckRules(this,upd,ruleas,rulebs);
+) // }}}
+|
+#define ispure pure
+#define $fixupdres \
+  1->2:Int; \
+  $end;
+#define $fixupd \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $fixupdres
+global $fixupd fixupd(1 ispure,2);
+local ispure service Service(fixupd (1 of 2) this) // {{{
+( this[2]>>upd>>ruleas>>rulebs;
+  ruleas[1]<<^copy;
+  ruleas[1]>>ruleas2;
+  rulebs[1]<<^copy;
+  rulebs[1]>>rulebs2;
+  fupd=new improveupd(2 of 2);
+  fupd[1]<<upd<<ruleas<<rulebs;
+  fupd[1]>>better;
+  better[1]<<^copy;
+  better[1]>>better2;
+  ruleas2[1]<<^copy;
+  ruleas2[1]>>ruleas3;
+  rulebs2[1]<<^copy;
+  rulebs2[1]>>rulebs3;
+  cupd=new checkupd(2 of 2);
+  cupd[1]<<better<<ruleas2<<rulebs2;
+  cupd[1]>>res;
+  if res<=0
+  then 
+       //HOST("cout << \"more work\" << endl;") pure;
+       //pl=new printlist(2 of 2);
+       //pl<<Int;
+       //better2[1]<<^copy;
+       //better2[1]>>better3;
+       //pl[1]<<int2string<<better3;
+       c2=new fixupd(2 of 2);
+       c2[1]<<better2<<ruleas3<<rulebs3;
+       c2[1]>>ans;
+       this[2]<<ans;
+  else ruleas3[1]<<^end;
+       rulebs3[1]<<^end;
+       better2[1]<<^length;
+       better2[1]>>len;
+       Int mid=len/2;
+       better2[1]<<^get<<mid;
+       better2[1]>>
+       {^val: better2[1]>>v;
+              this[2]<<v;
+              better2[1]<<^end;
+        ^err: // Should not happen
+              better2[1]>>err;
+              this[2]<<0-1;
+              better2[1]<<^end;
+       }
 ) // }}}
 |
 #define $checkupds \
@@ -170,8 +230,8 @@ local pure service Service(fixupd (1 of 2) this) // {{{
   2->1:$list(Int)(2 of 1 pure,2); \
   2->1:$list(Int)(2 of 1 pure,2); \
   $checkupdres
-global $checkupds checkupds(1 pure,2);
-local pure service Service(checkupds (1 of 2) this) // {{{
+global $checkupds checkupds(1 ispure,2);
+local ispure service Service(checkupds (1 of 2) this) // {{{
 ( this[2]>>upds>>ruleas>>rulebs;
   upds[1]<<^pop;
   upds[1]>>
@@ -182,12 +242,15 @@ local pure service Service(checkupds (1 of 2) this) // {{{
    ^cons:
     upds[1]>>updstr>>rest;
     // First call checkupd on updstr
+    pupd=new parseupd(2 of 2);
+    pupd[1]<<updstr;
+    pupd[1]>>upd;
     cupd=new checkupd(2 of 2);
     ruleas[1]<<^copy;
     ruleas[1]>>ruleas_cpy;
     rulebs[1]<<^copy;
     rulebs[1]>>rulebs_cpy;
-    cupd[1]<<updstr<<ruleas_cpy<<rulebs_cpy;
+    cupd[1]<<upd<<ruleas_cpy<<rulebs_cpy;
     cupd[1]>>val;
     // If failed, fix and add new val
     if val<=0
@@ -196,7 +259,10 @@ local pure service Service(checkupds (1 of 2) this) // {{{
          ruleas[1]>>ruleas_cpy;
          rulebs[1]<<^copy;
          rulebs[1]>>rulebs_cpy;
-         fupd[1]<<updstr<<ruleas_cpy<<rulebs_cpy;
+         pupd=new parseupd(2 of 2);
+         pupd[1]<<updstr;
+         pupd[1]>>upd;
+         fupd[1]<<upd<<ruleas_cpy<<rulebs_cpy;
          fupd[1]>>inc;
          // Then call recursively on rest
          sumrest=new checkupds(2 of 2);
