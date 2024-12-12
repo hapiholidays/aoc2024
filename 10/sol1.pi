@@ -1,0 +1,231 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define ispure
+#define $stepupsres \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  1->2:$list(String)(2 of 1 pure,2); \
+  $end;
+#define $stepups \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:$list(String)(2 of 1 pure,2); \
+  $stepupsres
+global $stepups stepups(1 ispure,2);
+local ispure service Service(stepups (1 of 2) this) // {{{
+( this[2]>>state>>nextstate>>map;
+  
+  state[1]<<^pop;
+  state[1]>>
+  {^nil:
+    this[2]<<nextstate<<map;
+   ^tree:
+    state[1]>>pos>>s1>>s2;
+    // Call on s1
+    su1=new stepups(2 of 2);
+    su1[1]<<s1<<nextstate<<map;
+    su1[1]>>nextstate>>map;
+    // Call on s2
+    su2=new stepups(2 of 2);
+    su2[1]<<s2<<nextstate<<map;
+    su2[1]>>nextstate>>map;
+    // Use pos
+    Int x=pos-(pos/1000)*1000;
+    Int y=pos/1000;
+    local ispure Step2($stepupsres(1 of 1 ispure,2) this, $set(Int)(2 of 1 pure,2) nextstate, $list(String)(2 of 1 pure,2) map, Int hcur) // {{{
+    ( map[1]<<^get<<y+1;
+      map[1]>>
+      {^err:
+        map[1]>>err;
+        this[2]<<nextstate<<map;
+       ^val:
+        map[1]>>npos;
+        Int hdown=if (0<=x) and (x+1<=npos&^length) then npos&(x) else 0;
+        if hdown=hcur+1
+        then nextstate[1]<<^insert<<(y+1)*1000+x;
+             this[2]<<nextstate<<map;
+        else this[2]<<nextstate<<map;
+      }
+    ) // }}}
+    local ispure Step1($stepupsres(1 of 1 ispure,2) this, $set(Int)(2 of 1 pure,2) nextstate, $list(String)(2 of 1 pure,2) map, Int hcur) // {{{
+    ( if 1<=y
+      then map[1]<<^get<<y-1;
+           map[1]>>
+           {^err:
+             map[1]>>err;
+             Step2(this,nextstate,map,hcur);
+            ^val:
+             map[1]>>ppos;
+             Int hup=if (0<=x) and (x+1<=ppos&^length) then ppos&(x) else 0;
+             if hup=hcur+1
+             then nextstate[1]<<^insert<<(y-1)*1000+x;
+                  Step2(this,nextstate,map,hcur);
+             else Step2(this,nextstate,map,hcur);
+           }
+      else Step2(this,nextstate,map,hcur);
+    ) // }}}
+    map[1]<<^get<<y;
+    map[1]>>
+    {^err: // This should not happen!
+      map[1]>>err;
+      this[2]<<nextstate<<map; // Without current pos, we cannot check stepup
+     ^val:
+       map[1]>>lpos;
+       Int hcur=if (0<=x) and (x+1<=lpos&^length) then lpos&x else 0;
+       Int hleft=if (1<=x) and (x<=lpos&^length) then lpos&(x-1) else 0;
+       Int hright=if (0<=x+1) and (x+2<=lpos&^length) then lpos&(x+1) else 0;
+       if hleft=hcur+1
+       then nextstate[1]<<^insert<<y*1000+x-1;
+            if hright=hcur+1
+            then nextstate[1]<<^insert<<y*1000+x+1;
+                 Step1(this,nextstate,map,hcur);
+            else Step1(this,nextstate,map,hcur);
+       else if hright=hcur+1
+            then nextstate[1]<<^insert<<y*1000+x+1;
+                 Step1(this,nextstate,map,hcur);
+            else Step1(this,nextstate,map,hcur);
+    }
+  }
+) // }}}
+|
+#define $scoreres \
+  1->2:Int; \
+  1->2:$list(String)(2 of 1 pure,2); \
+  $end;
+#define $score \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:$list(String)(2 of 1 pure,2); \
+  $scoreres
+global $score score(1 ispure,2);
+local ispure service Service(score (1 of 2) this) // {{{
+( local ispure State($scoreres(1 of 1 ispure,2) this, $list(String)(2 of 1 pure,2) map, $set(Int)(2 of 1 pure,2) state, $set(Int)(2 of 1 pure,2) nextstate, Int altitude) // {{{
+  ( if altitude="9"&0
+    then state[1]<<^size;
+         state[1]>>res;
+         state[1]<<^end;
+         nextstate[1]<<^end;
+         this[2]<<res<<map;
+    else su=new stepups(2 of 2);
+         //Debug
+         state[1]<<^copy;
+         state[1]>>dbg_state;
+
+         su[1]<<state<<nextstate<<map;
+         su[1]>>nextstate>>map;
+         nnstate=new set(2 of 2);
+         nnstate<<Int;
+         nnstate[1]<<stdorder_Int;
+         //Debug
+         debug("Input: ");
+         dbg_statelist=new set2list(2 of 2);
+         dbg_statelist<<Int;
+         dbg_statelist[1]<<dbg_state;
+         pl=new printlist(2 of 2);
+         pl<<Int;
+         pl[1]<<int2string<<dbg_statelist;
+         debug("Output: ");
+         nextstate[1]<<^copy;
+         nextstate[1]>>dbg_nextstate;
+         dbg_nextstatelist=new set2list(2 of 2);
+         dbg_nextstatelist<<Int;
+         dbg_nextstatelist[1]<<dbg_nextstate;
+         pl=new printlist(2 of 2);
+         pl<<Int;
+         pl[1]<<int2string<<dbg_nextstatelist;
+
+         State(this,map,nextstate,nnstate,altitude+1);
+  ) // }}}
+  this[2]>>x>>y>>map;
+  state=new set(2 of 2);
+  state<<Int;
+  state[1]<<stdorder_Int;
+  state[1]<<^insert<<y*1000+x;
+  nextstate=new set(2 of 2);
+  nextstate<<Int;
+  nextstate[1]<<stdorder_Int;
+  State(this,map,state,nextstate,"0"&0);
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( local SumScores($list(String)(2 of 1 pure,2) map, Int x, Int y, Int sum)
+  ( map[1]<<^get<<y;
+    map[1]>>
+    {^err:
+      map[1]>>err;
+      map[1]<<^end;
+      c=new console(2 of 2);
+      c[1]<<^str<<"Result: "<<^int<<sum<<^nl<<^end;
+     ^val:
+      map[1]>>hline;
+      if hline&^length<=x
+      then SumScores(map,0,y+1,sum);
+      else if hline&x="0"&0
+           then s=new score(2 of 2);
+                s[1]<<x<<y<<map;
+                s[1]>>score>>map;
+                c=new console(2 of 2);
+                c[1]<<^str<<"Score("<<^int<<x<<^str<<","<<^int<<y<<^str<<")="<<^int<<score<<^nl<<^end;
+                SumScores(map,x+1,y,sum+score);
+           else SumScores(map,x+1,y,sum);
+    }
+  )
+  SumScores(lines,0,0,0);
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}

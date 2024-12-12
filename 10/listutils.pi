@@ -1,0 +1,242 @@
+#pragma once
+#include<console.pi>
+#include<struct/list.pi>
+#include<struct/set.pi>
+#include<order.pi>
+#include<succ.pi>
+
+// mergesort: Mersesort List Service // {{{
+#define $abslistsort \
+  2:#elt; \
+  2->1:$order(#elt)(1 pure,2); \
+  2->1:$list(#elt)(2 of 1 pure,2); \
+  1->2:Bool; \
+  $list(#elt)
+global $abslistsort mergesort(1 pure,2);
+local pure service MergesortService(mergesort (1 of 2) this) // {{{
+( this>>#elt;
+  this[2]>>cmp_ch;
+  this[2]>>src;
+  src[1]<<^get<<1;
+  src[1]>>
+  {^err: // Less than 2 elements - so already sorted!
+    src[1]>>msg;
+    this[2]<<true;
+    src[1]<<^takeover<<this;
+   ^val:
+    // Split
+    src[1]>>v;
+    src[1]<<^unzip;
+    src[1]>>src2;
+    // Sort parts
+    sort1=new mergesort(2 of 2);
+    sort1<<#elt;
+    sort2=new mergesort(2 of 2);
+    sort2<<#elt;
+    sort1[1]<<cmp_ch<<src;
+    sort1[1]>>done1;
+    sort2[1]<<cmp_ch<<src2;
+    sort2[1]>>done2;
+    // Merge
+    sort1[1]<<^get<<0;
+    sort1[1]>>
+    {^err:
+      sort1[1]>>msg;
+      sort1[1]<<^end;
+      this[2]<<true;
+      sort2[1]<<^takeover<<this;
+     ^val:
+      sort1[1]>>v1;
+      sort2[1]<<^get<<0;
+      sort2[1]>>
+      {^err:
+        sort2[1]>>msg;
+        sort2[1]<<^end;
+        this[2]<<true;
+        sort1[1]<<^takeover<<this;
+       ^val:
+        sort2[1]>>v2;
+        cmp=new cmp_ch(2 of 2);
+        cmp[1]<<^leq<<v1<<v2;
+        cmp[1]>>leq;
+        if leq
+        then sort1[1]<<^merge<<cmp<<sort2;
+             this[2]<<true;
+             sort1[1]<<^takeover<<this;
+        else sort2[1]<<^merge<<cmp<<sort1;
+             this[2]<<true;
+             sort2[1]<<^takeover<<this;
+      }
+    }
+  }
+) // }}}
+| // }}}
+// revlist: Reverse List Service // {{{
+#define $revlist \
+  2:#elt; \
+  2->1:$list(#elt)(2 of 1 pure,2); \
+  $list(#elt)
+global $revlist revlist(1 pure,2);
+local pure service RevList(revlist (1 of 2) this) // {{{
+( this>>#elt;
+  local pure Rev($list(#elt)(2 of 1 pure,2) src, $list(#elt)(2 of 1 pure,2) dst, $list(#elt)(1 of 1 pure,2) this) // {{{
+  ( src[1]<<^pop;
+    src[1]>>
+    {^nil:
+      dst[1]<<^takeover<<this;
+     ^cons:
+      src[1]>>first>>rest;
+      dst[1]<<^cons<<first;
+      Rev(rest,dst,this);
+    }
+  ) // }}}
+  dst=new list(2 of 2);
+  dst<<#elt;
+  this[2]>>src;
+  Rev(src,dst,this);
+) // }}}
+| // }}}
+// list2str: Make string representation of list // {{{
+#define $list2str \
+  2:#elt; \
+  2->1:$convert(#elt,String)(1 pure,2); \
+  2->1:$list(#elt)(2 of 1 pure,2); \
+  1->2:String; \
+  $end;
+global $list2str list2str(1 pure,2);
+local pure service List2Str(list2str (1 of 2) this) // {{{
+( this>>#elt;
+  this[2]>>tostring;
+  local pure ToString(1->2:String;$end;(1 of 1 pure,2) this, $list(#elt)(2 of 1 pure,2) elts, String res, Bool first) // {{{
+  ( elts[1]<<^pop;
+    elts[1]>>
+    {^nil:
+      this[2]<<res+"]";
+     ^cons:
+      elts[1]>>e>>rest;
+      ts=new tostring(2 of 2);
+      ts[1]<<e;
+      ts[1]>>
+      {^Error:
+        ts[1]>>err;
+        ToString(this,rest,res+(if first then "" else ",")+"<Error:"+err+">",false);
+       ^Ok:
+        ts[1]>>estr;
+        ToString(this,rest,res+(if first then "" else ",")+estr,false);
+      }
+    }
+  ) // }}}
+  String res="[";
+  this[2]>>l;
+  ToString(this,l,res,true);
+) // }}}
+| // }}}
+// printlist: Print a list // {{{
+#define $printlist \
+  2:#elt; \
+  2->1:$convert(#elt,String)(1pure,2); \
+  2->1:$list(#elt)(2 of 1 pure,2); \
+  $end;
+global $printlist printlist(1,2);
+local service PrintList(printlist (1 of 2) this) // {{{
+( this>>#elt;
+  this[2]>>tostring;
+  this[2]>>l;
+  local Print($list(#elt)(2 of 1 pure,2) elts, $console(2 of 1,2) c, Bool first) // {{{
+  ( elts[1]<<^pop;
+    elts[1]>>
+    {^nil:
+      c[1]<<^str<<"]"<<^end;
+     ^cons:
+      elts[1]>>e>>rest;
+      ts=new tostring(2 of 2);
+      ts[1]<<e;
+      ts[1]>>
+      {^Error:
+        ts[1]>>err;
+        c[1]<<^str<<",<Error:"<<^str<<err<<^str<<">";
+        Print(rest,c,false);
+       ^Ok:
+        ts[1]>>estr;
+        c[1]<<^str<<(if first then "" else ",")<<^str<<estr;
+        Print(rest,c,false);
+      }
+    }
+  ) // }}}
+  c = new console(2 of 2);
+  c[1]<<^str<<"[";
+  Print(l,c,true);
+) // }}}
+| // }}}
+// set2list: Convert a set to a list // {{{
+#define $set2listres(_elt) \
+  $list(_elt)
+#define $set2list(_elt) \
+  2->1:$set(_elt)(2 of 1 pure,2); \
+  $set2listres(_elt)
+#define $absset2list \
+  2:#elt; \
+  $set2list(#elt)
+global $absset2list set2list(1 pure,2);
+local pure service Service(set2list (1 of 2) this) // {{{
+( this>>#elt;
+  this[2]>>s;
+  s[1]<<^pop;
+  s[1]>>
+  {^nil:
+    res=new list(2 of 2);
+    res<<#elt;
+    res[1]<<^takeover<<this;
+   ^tree:
+    s[1]>>e>>s1>>s2;
+    l1=new set2list(2 of 2);
+    l1<<#elt;
+    l1[1]<<s1;
+    l2=new set2list(2 of 2);
+    l2<<#elt;
+    l2[1]<<s2;
+    l2[1]<<^cons<<e;
+    l1[1]<<^append<<l2;
+    l1[1]<<^takeover<<this;
+  }
+) // }}}
+| // }}}
+// str2str: Convert a string to string // {{{
+global $convert(String,String) str2str(1 pure,2);
+local pure service Str2Str(str2str (1 of 2) this) // {{{
+( this[2]>>s;
+  this[2]<<^Ok<<s;
+) // }}}
+| // }}}
+// unionset: Merge two sets into one // {{{
+#define $unionsetres \
+  1->2:$set(#elt)(2 of 1 pure,2); \
+  $end;
+#define $unionset \
+  2:#elt; \
+  2->1:$set(#elt)(2 of 1 pure,2); \
+  2->1:$set(#elt)(2 of 1 pure,2); \
+  $unionsetres
+global $unionset unionset(1 pure,2);
+local pure service Service(unionset (1 of 2) this) // {{{
+( this>>#elt;
+  this[2]>>s1>>s2;
+  s1[1]<<^pop;
+  s1[1]>>
+  {^nil:
+    this[2]<<s2;
+   ^tree:
+    s1[1]>>val>>s11>>s12;
+    s2[1]<<^insert<<val;
+    us1=new unionset(2 of 2);
+    us1<<#elt;
+    us1[1]<<s11<<s2;
+    us1[1]>>s3;
+    us2=new unionset(2 of 2);
+    us2<<#elt;
+    us2[1]<<s12<<s3;
+    us2[1]>>s4;
+    this[2]<<s4;
+  }
+) // }}}
+| // }}}
