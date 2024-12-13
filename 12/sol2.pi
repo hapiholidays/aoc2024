@@ -120,12 +120,12 @@ local ispure service Service(leftside (1 of 2) this) // {{{
   if m1 and (not m2) and (not v)
   then // unvisited area on upside in areas
        visited[1]<<^insert<<y*1000+x; // Mark as visited (and part of side)
-       sleft=new leftside(2 of 2);
-       sleft[1]<<x-1<<y<<areas<<visited;
-       sleft[1]>>areas>>visited;
-       sright=new leftside(2 of 2);
-       sright[1]<<x+1<<y<<areas<<visited;
-       sright[1]>>areas>>visited;
+       sup=new leftside(2 of 2);
+       sup[1]<<x<<y-1<<areas<<visited;
+       sup[1]>>areas>>visited;
+       sdown=new leftside(2 of 2);
+       sdown[1]<<x<<y+1<<areas<<visited;
+       sdown[1]>>areas>>visited;
        this[2]<<areas<<visited;
   else this[2]<<areas<<visited;
 ) // }}}
@@ -142,12 +142,12 @@ local ispure service Service(rightside (1 of 2) this) // {{{
   if m1 and (not m2) and (not v)
   then // unvisited area on upside in areas
        visited[1]<<^insert<<y*1000+x; // Mark as visited (and part of side)
-       sleft=new rightside(2 of 2);
-       sleft[1]<<x-1<<y<<areas<<visited;
-       sleft[1]>>areas>>visited;
-       sright=new rightside(2 of 2);
-       sright[1]<<x+1<<y<<areas<<visited;
-       sright[1]>>areas>>visited;
+       sup=new rightside(2 of 2);
+       sup[1]<<x<<y-1<<areas<<visited;
+       sup[1]>>areas>>visited;
+       sdown=new rightside(2 of 2);
+       sdown[1]<<x<<y+1<<areas<<visited;
+       sdown[1]>>areas>>visited;
        this[2]<<areas<<visited;
   else this[2]<<areas<<visited;
 ) // }}}
@@ -162,8 +162,8 @@ local ispure service Service(rightside (1 of 2) this) // {{{
   2->1:$set(Int)(2 of 1 pure,2); \
   2->1:$set(Int)(2 of 1 pure,2); \
   $sidesres
-global $sides sides(1 ispure,2);
-local ispure service Service(sides (1 of 2) this) // {{{
+global $sides upsides(1 ispure,2);
+local ispure service Service(upsides (1 of 2) this) // {{{
 ( this[2]>>alist>>areas>>visited;
   alist[1]<<^pop;
   alist[1]>>
@@ -188,65 +188,158 @@ local ispure service Service(sides (1 of 2) this) // {{{
          t1[1]>>areas>>v1;
          v1[1]<<^size;
          v1[1]>>s1;
-         // Test downside
-         v2=new set(2 of 2);
-         v2<<Int;
-         v2[1]<<stdorder_Int;
-         t2=new downside(2 of 2);
-         t2[1]<<x<<y<<areas<<v2;
-         t2[1]>>areas>>v2;
-         v2[1]<<^size;
-         v2[1]>>s2;
-         // Test leftside
-         v3=new set(2 of 2);
-         v3<<Int;
-         v3[1]<<stdorder_Int;
-         t3=new leftside(2 of 2);
-         t3[1]<<x<<y<<areas<<v3;
-         t3[1]>>areas>>v3;
-         v3[1]<<^size;
-         v3[1]>>s3;
-         // Test rightside
-         v4=new set(2 of 2);
-         v4<<Int;
-         v4[1]<<stdorder_Int;
-         t4=new rightside(2 of 2);
-         t4[1]<<x<<y<<areas<<v4;
-         t4[1]>>areas>>v4;
-         v4[1]<<^size;
-         v4[1]>>s4;
 
          u1=new unionset(2 of 2);
          u1<<Int;
          u1[1]<<v1<<visited;
          u1[1]>>visited;
 
-         u2=new unionset(2 of 2);
-         u2<<Int;
-         u2[1]<<v2<<visited;
-         u2[1]>>visited;
+         visited[1]<<^insert<<y*1000+x; // Mark as visited
 
-         u3=new unionset(2 of 2);
-         u3<<Int;
-         u3[1]<<v3<<visited;
-         u3[1]>>visited;
+         s=new upsides(2 of 2);
+         s[1]<<atail<<areas<<visited;
+         s[1]>>count>>areas>>visited;
+         this[2]<<count+(if 1<=s1 then 1 else 0)
+                <<areas<<visited;
+    else s=new upsides(2 of 2);
+         s[1]<<atail<<areas<<visited;
+         s[1]>>count>>areas>>visited;
+         this[2]<<count<<areas<<visited;
+  }
+) // }}}
+|
+global $sides downsides(1 ispure,2);
+local ispure service Service(downsides (1 of 2) this) // {{{
+( this[2]>>alist>>areas>>visited;
+  alist[1]<<^pop;
+  alist[1]>>
+  {^nil:
+    this[2]<<0<<areas<<visited;
+   ^cons:
+    alist[1]>>area>>atail;
+    visited[1]<<^member<<area;
+    visited[1]>>v;
+    areas[1]<<^member<<area;
+    areas[1]>>m;
+    if m and not v
+    then // unvisited area in areas
+         Int y=area/1000;
+         Int x=area-y*1000;
+         // Test downside
+         v1=new set(2 of 2);
+         v1<<Int;
+         v1[1]<<stdorder_Int;
+         t1=new downside(2 of 2);
+         t1[1]<<x<<y<<areas<<v1;
+         t1[1]>>areas>>v1;
+         v1[1]<<^size;
+         v1[1]>>s1;
 
-         u4=new unionset(2 of 2);
-         u4<<Int;
-         u4[1]<<v4<<visited;
-         u4[1]>>visited;
+         u1=new unionset(2 of 2);
+         u1<<Int;
+         u1[1]<<v1<<visited;
+         u1[1]>>visited;
 
          visited[1]<<^insert<<y*1000+x; // Mark as visited
 
-         s=new sides(2 of 2);
+         s=new downsides(2 of 2);
          s[1]<<atail<<areas<<visited;
          s[1]>>count>>areas>>visited;
-         this[2]<<count+(if 1<=s1 then 1 else 0)+
-                        (if 1<=s2 then 1 else 0)+
-                        (if 1<=s3 then 1 else 0)+
-                        (if 1<=s4 then 1 else 0)
+         this[2]<<count+(if 1<=s1 then 1 else 0)
                 <<areas<<visited;
-    else s=new sides(2 of 2);
+    else s=new downsides(2 of 2);
+         s[1]<<atail<<areas<<visited;
+         s[1]>>count>>areas>>visited;
+         this[2]<<count<<areas<<visited;
+  }
+) // }}}
+|
+global $sides leftsides(1 ispure,2);
+local ispure service Service(leftsides (1 of 2) this) // {{{
+( this[2]>>alist>>areas>>visited;
+  alist[1]<<^pop;
+  alist[1]>>
+  {^nil:
+    this[2]<<0<<areas<<visited;
+   ^cons:
+    alist[1]>>area>>atail;
+    visited[1]<<^member<<area;
+    visited[1]>>v;
+    areas[1]<<^member<<area;
+    areas[1]>>m;
+    if m and not v
+    then // unvisited area in areas
+         Int y=area/1000;
+         Int x=area-y*1000;
+         // Test leftside
+         v1=new set(2 of 2);
+         v1<<Int;
+         v1[1]<<stdorder_Int;
+         t1=new leftside(2 of 2);
+         t1[1]<<x<<y<<areas<<v1;
+         t1[1]>>areas>>v1;
+         v1[1]<<^size;
+         v1[1]>>s1;
+
+         u1=new unionset(2 of 2);
+         u1<<Int;
+         u1[1]<<v1<<visited;
+         u1[1]>>visited;
+
+         visited[1]<<^insert<<y*1000+x; // Mark as visited
+
+         s=new leftsides(2 of 2);
+         s[1]<<atail<<areas<<visited;
+         s[1]>>count>>areas>>visited;
+         this[2]<<count+(if 1<=s1 then 1 else 0)
+                <<areas<<visited;
+    else s=new leftsides(2 of 2);
+         s[1]<<atail<<areas<<visited;
+         s[1]>>count>>areas>>visited;
+         this[2]<<count<<areas<<visited;
+  }
+) // }}}
+|
+global $sides rightsides(1 ispure,2);
+local ispure service Service(rightsides (1 of 2) this) // {{{
+( this[2]>>alist>>areas>>visited;
+  alist[1]<<^pop;
+  alist[1]>>
+  {^nil:
+    this[2]<<0<<areas<<visited;
+   ^cons:
+    alist[1]>>area>>atail;
+    visited[1]<<^member<<area;
+    visited[1]>>v;
+    areas[1]<<^member<<area;
+    areas[1]>>m;
+    if m and not v
+    then // unvisited area in areas
+         Int y=area/1000;
+         Int x=area-y*1000;
+         // Test rightside
+         v1=new set(2 of 2);
+         v1<<Int;
+         v1[1]<<stdorder_Int;
+         t1=new rightside(2 of 2);
+         t1[1]<<x<<y<<areas<<v1;
+         t1[1]>>areas>>v1;
+         v1[1]<<^size;
+         v1[1]>>s1;
+
+         u1=new unionset(2 of 2);
+         u1<<Int;
+         u1[1]<<v1<<visited;
+         u1[1]>>visited;
+
+         visited[1]<<^insert<<y*1000+x; // Mark as visited
+
+         s=new rightsides(2 of 2);
+         s[1]<<atail<<areas<<visited;
+         s[1]>>count>>areas>>visited;
+         this[2]<<count+(if 1<=s1 then 1 else 0)
+                <<areas<<visited;
+    else s=new rightsides(2 of 2);
          s[1]<<atail<<areas<<visited;
          s[1]>>count>>areas>>visited;
          this[2]<<count<<areas<<visited;
@@ -282,27 +375,67 @@ local Process($list(String)(2 of 1 pure,2) lines) // {{{
            areaset[1]<<^size;
            areaset[1]>>fields;
            if 1<=fields
-           then areaset[1]<<^copy;
+           then // Find upsides
+                areaset[1]<<^copy;
                 areaset[1]>>areaset_cpy;
                 alist=new set2list(2 of 2);
                 alist<<Int;
                 alist[1]<<areaset_cpy;
-
                 vset=new set(2 of 2);
                 vset<<Int;
                 vset[1]<<stdorder_Int;
-                p=new sides(2 of 2);
-                p[1]<<alist<<areaset<<vset;
-                p[1]>>count>>areaset>>vset;
+                count_up=new upsides(2 of 2);
+                count_up[1]<<alist<<areaset<<vset;
+                count_up[1]>>cup>>areaset>>vset;
                 vset[1]<<^end;
+                // Find downsides
+                areaset[1]<<^copy;
+                areaset[1]>>areaset_cpy;
+                alist=new set2list(2 of 2);
+                alist<<Int;
+                alist[1]<<areaset_cpy;
+                vset=new set(2 of 2);
+                vset<<Int;
+                vset[1]<<stdorder_Int;
+                count_down=new downsides(2 of 2);
+                count_down[1]<<alist<<areaset<<vset;
+                count_down[1]>>cdown>>areaset>>vset;
+                vset[1]<<^end;
+                // Find leftsides
+                areaset[1]<<^copy;
+                areaset[1]>>areaset_cpy;
+                alist=new set2list(2 of 2);
+                alist<<Int;
+                alist[1]<<areaset_cpy;
+                vset=new set(2 of 2);
+                vset<<Int;
+                vset[1]<<stdorder_Int;
+                count_left=new leftsides(2 of 2);
+                count_left[1]<<alist<<areaset<<vset;
+                count_left[1]>>cleft>>areaset>>vset;
+                vset[1]<<^end;
+                // Find rightsides
+                areaset[1]<<^copy;
+                areaset[1]>>areaset_cpy;
+                alist=new set2list(2 of 2);
+                alist<<Int;
+                alist[1]<<areaset_cpy;
+                vset=new set(2 of 2);
+                vset<<Int;
+                vset[1]<<stdorder_Int;
+                count_right=new rightsides(2 of 2);
+                count_right[1]<<alist<<areaset<<vset;
+                count_right[1]>>cright>>areaset>>vset;
+                vset[1]<<^end;
+
                 nused=new unionset(2 of 2);
                 nused<<Int;
                 nused[1]<<areaset<<used;
                 nused[1]>>used;
                 c=new console(2 of 2);
                 c[1]<<^str<<"Area at ("<<^int<<x<<^str<<","<<^int<<y<<^str<<") has price "
-                    <<^int<<fields*count<<^nl<<^end;
-                SumPrices(map,used,x+1,y,sum+fields*count);
+                    <<^int<<fields*(cup+cdown+cleft+cright)<<^nl<<^end;
+                SumPrices(map,used,x+1,y,sum+fields*(cup+cdown+cleft+cright));
            else areaset[1]<<^end;
                 SumPrices(map,used,x+1,y,sum);
     }
