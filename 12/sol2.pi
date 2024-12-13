@@ -1,0 +1,362 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define ispure pure
+#define $areasres \
+  1->2:$list(String)(2 of 1 pure,2); \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+#define $areas \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:$list(String)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  $areasres
+global $areas areas(1 ispure,2);
+local ispure service Service(areas (1 of 2) this) // {{{
+( this[2]>>sym>>x>>y>>map>>used;
+  map[1]<<^get<<y;
+  map[1]>>
+  {^err: //Out of map
+    map[1]>>err;
+    this[2]<<map<<used;
+   ^val:
+    map[1]>>hline;
+    used[1]<<^member<<y*1000+x;
+    used[1]>>member;
+    if member or (x+1<=0) or (y+1<=0) or (hline&^length<=x) or (not (hline&x=sym))
+    then // time to stop
+         this[2]<<map<<used;
+    else // new area within map
+         used[1]<<^insert<<y*1000+x;
+         go_up=new areas(2 of 2);
+         go_up[1]<<sym<<x<<y-1<<map<<used;
+         go_up[1]>>map>>used;
+         go_down=new areas(2 of 2);
+         go_down[1]<<sym<<x<<y+1<<map<<used;
+         go_down[1]>>map>>used;
+         go_left=new areas(2 of 2);
+         go_left[1]<<sym<<x-1<<y<<map<<used;
+         go_left[1]>>map>>used;
+         go_right=new areas(2 of 2);
+         go_right[1]<<sym<<x+1<<y<<map<<used;
+         go_right[1]>>map>>used;
+         this[2]<<map<<used;
+  }
+) // }}}
+|
+#define $sideres \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+#define $side \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  $sideres
+global $side upside(1 ispure,2);
+local ispure service Service(upside (1 of 2) this) // {{{
+( this[2]>>x>>y>>areas>>visited;
+  visited[1]<<^member<<y*1000+x;
+  visited[1]>>v;
+  areas[1]<<^member<<y*1000+x;
+  areas[1]>>m1;
+  areas[1]<<^member<<(y-1)*1000+x;
+  areas[1]>>m2;
+  if m1 and (not m2) and (not v)
+  then // unvisited area on upside in areas
+       visited[1]<<^insert<<y*1000+x; // Mark as visited (and part of side)
+       sleft=new upside(2 of 2);
+       sleft[1]<<x-1<<y<<areas<<visited;
+       sleft[1]>>areas>>visited;
+       sright=new upside(2 of 2);
+       sright[1]<<x+1<<y<<areas<<visited;
+       sright[1]>>areas>>visited;
+       this[2]<<areas<<visited;
+  else this[2]<<areas<<visited;
+) // }}}
+|
+global $side downside(1 ispure,2);
+local ispure service Service(downside (1 of 2) this) // {{{
+( this[2]>>x>>y>>areas>>visited;
+  visited[1]<<^member<<y*1000+x;
+  visited[1]>>v;
+  areas[1]<<^member<<y*1000+x;
+  areas[1]>>m1;
+  areas[1]<<^member<<(y+1)*1000+x;
+  areas[1]>>m2;
+  if m1 and (not m2) and (not v)
+  then // unvisited area on upside in areas
+       visited[1]<<^insert<<y*1000+x; // Mark as visited (and part of side)
+       sleft=new downside(2 of 2);
+       sleft[1]<<x-1<<y<<areas<<visited;
+       sleft[1]>>areas>>visited;
+       sright=new downside(2 of 2);
+       sright[1]<<x+1<<y<<areas<<visited;
+       sright[1]>>areas>>visited;
+       this[2]<<areas<<visited;
+  else this[2]<<areas<<visited;
+) // }}}
+|
+global $side leftside(1 ispure,2);
+local ispure service Service(leftside (1 of 2) this) // {{{
+( this[2]>>x>>y>>areas>>visited;
+  visited[1]<<^member<<y*1000+x;
+  visited[1]>>v;
+  areas[1]<<^member<<y*1000+x;
+  areas[1]>>m1;
+  areas[1]<<^member<<y*1000+x-1;
+  areas[1]>>m2;
+  if m1 and (not m2) and (not v)
+  then // unvisited area on upside in areas
+       visited[1]<<^insert<<y*1000+x; // Mark as visited (and part of side)
+       sleft=new leftside(2 of 2);
+       sleft[1]<<x-1<<y<<areas<<visited;
+       sleft[1]>>areas>>visited;
+       sright=new leftside(2 of 2);
+       sright[1]<<x+1<<y<<areas<<visited;
+       sright[1]>>areas>>visited;
+       this[2]<<areas<<visited;
+  else this[2]<<areas<<visited;
+) // }}}
+|
+global $side rightside(1 ispure,2);
+local ispure service Service(rightside (1 of 2) this) // {{{
+( this[2]>>x>>y>>areas>>visited;
+  visited[1]<<^member<<y*1000+x;
+  visited[1]>>v;
+  areas[1]<<^member<<y*1000+x;
+  areas[1]>>m1;
+  areas[1]<<^member<<y*1000+x+1;
+  areas[1]>>m2;
+  if m1 and (not m2) and (not v)
+  then // unvisited area on upside in areas
+       visited[1]<<^insert<<y*1000+x; // Mark as visited (and part of side)
+       sleft=new rightside(2 of 2);
+       sleft[1]<<x-1<<y<<areas<<visited;
+       sleft[1]>>areas>>visited;
+       sright=new rightside(2 of 2);
+       sright[1]<<x+1<<y<<areas<<visited;
+       sright[1]>>areas>>visited;
+       this[2]<<areas<<visited;
+  else this[2]<<areas<<visited;
+) // }}}
+|
+#define $sidesres \
+  1->2:Int; \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+#define $sides \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  $sidesres
+global $sides sides(1 ispure,2);
+local ispure service Service(sides (1 of 2) this) // {{{
+( this[2]>>alist>>areas>>visited;
+  alist[1]<<^pop;
+  alist[1]>>
+  {^nil:
+    this[2]<<0<<areas<<visited;
+   ^cons:
+    alist[1]>>area>>atail;
+    visited[1]<<^member<<area;
+    visited[1]>>v;
+    areas[1]<<^member<<area;
+    areas[1]>>m;
+    if m and not v
+    then // unvisited area in areas
+         Int y=area/1000;
+         Int x=area-y*1000;
+         // Test upside
+         v1=new set(2 of 2);
+         v1<<Int;
+         v1[1]<<stdorder_Int;
+         t1=new upside(2 of 2);
+         t1[1]<<x<<y<<areas<<v1;
+         t1[1]>>areas>>v1;
+         v1[1]<<^size;
+         v1[1]>>s1;
+         // Test downside
+         v2=new set(2 of 2);
+         v2<<Int;
+         v2[1]<<stdorder_Int;
+         t2=new downside(2 of 2);
+         t2[1]<<x<<y<<areas<<v2;
+         t2[1]>>areas>>v2;
+         v2[1]<<^size;
+         v2[1]>>s2;
+         // Test leftside
+         v3=new set(2 of 2);
+         v3<<Int;
+         v3[1]<<stdorder_Int;
+         t3=new leftside(2 of 2);
+         t3[1]<<x<<y<<areas<<v3;
+         t3[1]>>areas>>v3;
+         v3[1]<<^size;
+         v3[1]>>s3;
+         // Test rightside
+         v4=new set(2 of 2);
+         v4<<Int;
+         v4[1]<<stdorder_Int;
+         t4=new rightside(2 of 2);
+         t4[1]<<x<<y<<areas<<v4;
+         t4[1]>>areas>>v4;
+         v4[1]<<^size;
+         v4[1]>>s4;
+
+         u1=new unionset(2 of 2);
+         u1<<Int;
+         u1[1]<<v1<<visited;
+         u1[1]>>visited;
+
+         u2=new unionset(2 of 2);
+         u2<<Int;
+         u2[1]<<v2<<visited;
+         u2[1]>>visited;
+
+         u3=new unionset(2 of 2);
+         u3<<Int;
+         u3[1]<<v3<<visited;
+         u3[1]>>visited;
+
+         u4=new unionset(2 of 2);
+         u4<<Int;
+         u4[1]<<v4<<visited;
+         u4[1]>>visited;
+
+         visited[1]<<^insert<<y*1000+x; // Mark as visited
+
+         s=new sides(2 of 2);
+         s[1]<<atail<<areas<<visited;
+         s[1]>>count>>areas>>visited;
+         this[2]<<count+(if 1<=s1 then 1 else 0)+
+                        (if 1<=s2 then 1 else 0)+
+                        (if 1<=s3 then 1 else 0)+
+                        (if 1<=s4 then 1 else 0)
+                <<areas<<visited;
+    else s=new sides(2 of 2);
+         s[1]<<atail<<areas<<visited;
+         s[1]>>count>>areas>>visited;
+         this[2]<<count<<areas<<visited;
+  }
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( local SumPrices($list(String)(2 of 1 pure,2) map, $set(Int)(2 of 1 pure,2) used, Int x, Int y, Int sum) // {{{
+  ( map[1]<<^get<<y;
+    map[1]>>
+    {^err:
+      map[1]>>err;
+      map[1]<<^end;
+      used[1]<<^end;
+      c=new console(2 of 2);
+      c[1]<<^str<<"Result: "<<^int<<sum<<^nl<<^end;
+     ^val:
+      map[1]>>hline;
+      used[1]<<^member<<y*1000+x;
+      used[1]>>v;
+      if hline&^length<=x
+      then SumPrices(map,used,0,y+1,sum);
+      else if v
+      then SumPrices(map,used,x+1,y,sum);
+      else Int sym=hline&x;
+           areaset=new set(2 of 2);
+           areaset<<Int;
+           areaset[1]<<stdorder_Int;
+           s=new areas(2 of 2);
+           s[1]<<sym<<x<<y<<map<<areaset;
+           s[1]>>map>>areaset;
+           areaset[1]<<^size;
+           areaset[1]>>fields;
+           if 1<=fields
+           then areaset[1]<<^copy;
+                areaset[1]>>areaset_cpy;
+                alist=new set2list(2 of 2);
+                alist<<Int;
+                alist[1]<<areaset_cpy;
+
+                vset=new set(2 of 2);
+                vset<<Int;
+                vset[1]<<stdorder_Int;
+                p=new sides(2 of 2);
+                p[1]<<alist<<areaset<<vset;
+                p[1]>>count>>areaset>>vset;
+                vset[1]<<^end;
+                nused=new unionset(2 of 2);
+                nused<<Int;
+                nused[1]<<areaset<<used;
+                nused[1]>>used;
+                c=new console(2 of 2);
+                c[1]<<^str<<"Area at ("<<^int<<x<<^str<<","<<^int<<y<<^str<<") has price "
+                    <<^int<<fields*count<<^nl<<^end;
+                SumPrices(map,used,x+1,y,sum+fields*count);
+           else areaset[1]<<^end;
+                SumPrices(map,used,x+1,y,sum);
+    }
+  ) // }}}
+  used=new set(2 of 2);
+  used<<Int;
+  used[1]<<stdorder_Int;
+  SumPrices(lines,used,0,0,0);
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}

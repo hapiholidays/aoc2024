@@ -1,0 +1,205 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define ispure pure
+#define $areasres \
+  1->2:$list(String)(2 of 1 pure,2); \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+#define $areas \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:$list(String)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  $areasres
+global $areas areas(1 ispure,2);
+local ispure service Service(areas (1 of 2) this) // {{{
+( this[2]>>sym>>x>>y>>map>>used;
+  map[1]<<^get<<y;
+  map[1]>>
+  {^err: //Out of map
+    map[1]>>err;
+    this[2]<<map<<used;
+   ^val:
+    map[1]>>hline;
+    used[1]<<^member<<y*1000+x;
+    used[1]>>member;
+    if member or (x+1<=0) or (y+1<=0) or (hline&^length<=x) or (not (hline&x=sym))
+    then // time to stop
+         this[2]<<map<<used;
+    else // new area within map
+         used[1]<<^insert<<y*1000+x;
+         go_up=new areas(2 of 2);
+         go_up[1]<<sym<<x<<y-1<<map<<used;
+         go_up[1]>>map>>used;
+         go_down=new areas(2 of 2);
+         go_down[1]<<sym<<x<<y+1<<map<<used;
+         go_down[1]>>map>>used;
+         go_left=new areas(2 of 2);
+         go_left[1]<<sym<<x-1<<y<<map<<used;
+         go_left[1]>>map>>used;
+         go_right=new areas(2 of 2);
+         go_right[1]<<sym<<x+1<<y<<map<<used;
+         go_right[1]>>map>>used;
+         this[2]<<map<<used;
+  }
+) // }}}
+|
+#define $perimeterres \
+  1->2:Int; \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+#define $perimeter \
+  2->1:Int; \
+  2->1:Int; \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  $perimeterres
+global $perimeter perimeter(1 ispure,2);
+local ispure service Service(perimeter (1 of 2) this) // {{{
+( this[2]>>x>>y>>areas>>visited;
+  visited[1]<<^member<<y*1000+x;
+  visited[1]>>v;
+  areas[1]<<^member<<y*1000+x;
+  areas[1]>>m;
+  if m and not v
+  then // unvisited area in areas
+       visited[1]<<^insert<<y*1000+x; // Mark as visited
+       areas[1]<<^member<<y*1000+x-1; // check left
+       areas[1]>>pleft;
+       areas[1]<<^member<<y*1000+x+1; // check right
+       areas[1]>>pright;
+       areas[1]<<^member<<(y-1)*1000+x; // check up
+       areas[1]>>pup;
+       areas[1]<<^member<<(y+1)*1000+x; // check down
+       areas[1]>>pdown;
+       cleft=new perimeter(2 of 2);
+       cleft[1]<<x-1<<y<<areas<<visited;
+       cleft[1]>>psleft>>areas>>visited;
+       cright=new perimeter(2 of 2);
+       cright[1]<<x+1<<y<<areas<<visited;
+       cright[1]>>psright>>areas>>visited;
+       cup=new perimeter(2 of 2);
+       cup[1]<<x<<y-1<<areas<<visited;
+       cup[1]>>psup>>areas>>visited;
+       cdown=new perimeter(2 of 2);
+       cdown[1]<<x<<y+1<<areas<<visited;
+       cdown[1]>>psdown>>areas>>visited;
+       this[2]<<(if pleft then psleft else 1)+
+                (if pright then psright else 1)+
+                (if pup then psup else 1)+
+                (if pdown then psdown else 1)<<areas<<visited;
+  else this[2]<<0<<areas<<visited;
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( local SumPrices($list(String)(2 of 1 pure,2) map, $set(Int)(2 of 1 pure,2) used, Int x, Int y, Int sum) // {{{
+  ( map[1]<<^get<<y;
+    map[1]>>
+    {^err:
+      map[1]>>err;
+      map[1]<<^end;
+      used[1]<<^end;
+      c=new console(2 of 2);
+      c[1]<<^str<<"Result: "<<^int<<sum<<^nl<<^end;
+     ^val:
+      map[1]>>hline;
+      used[1]<<^member<<y*1000+x;
+      used[1]>>v;
+      if hline&^length<=x
+      then SumPrices(map,used,0,y+1,sum);
+      else if v
+      then SumPrices(map,used,x+1,y,sum);
+      else Int sym=hline&x;
+           areaset=new set(2 of 2);
+           areaset<<Int;
+           areaset[1]<<stdorder_Int;
+           s=new areas(2 of 2);
+           s[1]<<sym<<x<<y<<map<<areaset;
+           s[1]>>map>>areaset;
+           areaset[1]<<^size;
+           areaset[1]>>fields;
+           if 1<=fields
+           then vset=new set(2 of 2);
+                vset<<Int;
+                vset[1]<<stdorder_Int;
+                p=new perimeter(2 of 2);
+                p[1]<<x<<y<<areaset<<vset;
+                p[1]>>perim>>areaset>>vset;
+                vset[1]<<^end;
+                nused=new unionset(2 of 2);
+                nused<<Int;
+                nused[1]<<areaset<<used;
+                nused[1]>>nextused;
+                c=new console(2 of 2);
+                c[1]<<^str<<"Area at ("<<^int<<x<<^str<<","<<^int<<y<<^str<<") has price "
+                    <<^int<<fields*perim<<^nl<<^end;
+                SumPrices(map,nextused,x+1,y,sum+fields*perim);
+           else areaset[1]<<^end;
+                SumPrices(map,used,x+1,y,sum);
+    }
+  ) // }}}
+  used=new set(2 of 2);
+  used<<Int;
+  used[1]<<stdorder_Int;
+  SumPrices(lines,used,0,0,0);
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
