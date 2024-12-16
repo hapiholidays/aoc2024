@@ -1,0 +1,237 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define FLOAT2STRING(i,val) HOST("{ ", val, ".reset(new libpi::String(((libpi::Float*)", i, ".get())->ToString())); }")
+#define FLOAT2INT(fval,ival) HOST("{ ", ival, ".reset(new libpi::Int(mpf_get_si(((libpi::Float*)", fval, ".get())->GetValue()))); }")
+//#undef INT2FLOAT
+//#define INT2FLOAT(ival,fval) HOST("{ ", fval, ".reset(new libpi::Float((mpz_t)((libpi::Int*)", ival, ".get())->GetValue())); }")
+#define ispure
+#define $parsexyres \
+  1->2:Float; \
+  1->2:Float; \
+  $end;
+#define $parsexy \
+  2->1:String; \
+  $parsexyres
+global $parsexy parsexy(1 ispure,2);
+local ispure service Service(parsexy (1 of 2) this) // {{{
+( this[2]>>line;
+  sf1=new strfind(2 of 2);
+  sf1[1]<<line<<"X";
+  sf1[1]>>pos;
+  if pos+1<=0
+  then this[2]<<0.0<<0.0;
+  else String line2=line%(pos+2);
+       sf2=new strfind(2 of 2);
+       sf2[1]<<line2<<",";
+       sf2[1]>>pos;
+       if pos+1<=0
+       then this[2]<<0.0<<0.0;
+       else String xstr=line2/pos;
+            Float x=0.0;
+            STRING2FLOAT(xstr,x) pure;
+            String line3=line2%(pos+1);
+            sf3=new strfind(2 of 2);
+            sf3[1]<<line3<<"Y";
+            sf3[1]>>pos;
+            if pos+1<=0
+            then this[2]<<0.0<<0.0;
+            else String ystr=line3%(pos+2);
+                 Float y=0.0;
+                 STRING2FLOAT(ystr,y) pure;
+                 this[2]<<x<<y;
+) // }}}
+|
+#define $solvelinres \
+  1->2:Float; \
+  1->2:Float; \
+  1->2:Float; \
+  1->2:Float; \
+  1->2:Float; \
+  1->2:Float; \
+  $end;
+#define $solvelin \
+  2->1:Float; \
+  2->1:Float; \
+  2->1:Float; \
+  2->1:Float; \
+  2->1:Float; \
+  2->1:Float; \
+  $solvelinres
+global $solvelin solvelin(1 ispure,2);
+local ispure service Service(solvelin (1 of 2) this) // {{{
+( this[2]>>x1>>x2>>y1>>y2>>z1>>z2;
+  if (x1=0.0) and (not (x2=0.0))
+  then sl=new solvelin(2 of 2);
+       sl[1]<<x2<<x1<<y2<<y1<<z2<<z1;
+       sl[1]>>rx1>>rx2>>ry1>>ry2>>rz1>>rz2;
+       this[2]<<rx1<<rx2<<ry1<<ry2<<rz1<<rz2;
+  else if (not (x1=0.0)) and (not (x2=0.0))
+  then Float f=x2/x1;
+       sl=new solvelin(2 of 2);
+       sl[1]<<x1<<0.0<<y1<<y2-f*y1<<z1<<z2-f*z1;
+       sl[1]>>rx1>>rx2>>ry1>>ry2>>rz1>>rz2;
+       this[2]<<rx1<<rx2<<ry1<<ry2<<rz1<<rz2;
+  else if (y2=0.0) and (not (z2=0.0))
+  then this[2]<<0.0<<0.0<<0.0<<0.0<<1.0<<0.0;
+  else if (y2=0.0) and (z2=0.0)
+  then this[2]<<1.0<<0.0<<y1/x1<<0.0<<z1/x1<<0.0;
+  else if (not (y2=0.0)) and (not (y1=0.0))
+  then Float f=y1/y2;
+       sl=new solvelin(2 of 2);
+       sl[1]<<x1-f*x2<<x2<<0.0<<y2<<z1-f*z2<<z2;
+       sl[1]>>rx1>>rx2>>ry1>>ry2>>rz1>>rz2;
+       this[2]<<rx1<<rx2<<ry1<<ry2<<rz1<<rz2;
+  else //x1!=0 x2=0 y1=0 y2!=0 -> just scale!
+       //do not handle case x1=x2=0
+       this[2]<<1.0<<0.0<<0.0<<1.0<<z1/x1<<z2/y2;
+) // }}}
+|
+#define $counttokensres \
+  1->2:Int; \
+  $end;
+#define $counttokens \
+  2->1:String; \
+  2->1:String; \
+  2->1:String; \
+  $counttokensres
+global $counttokens counttokens(1 ispure,2);
+local ispure service Service(counttokens (1 of 2) this) // {{{
+( this[2]>>a>>b>>c;
+  pxy=new parsexy(2 of 2);
+  pxy[1]<<a;
+  pxy[1]>>a1>>a2;
+  pxy=new parsexy(2 of 2);
+  pxy[1]<<b;
+  pxy[1]>>b1>>b2;
+  pxy=new parsexy(2 of 2);
+  pxy[1]<<c;
+  pxy[1]>>c1>>c2;
+  
+  sl=new solvelin(2 of 2);
+  sl[1]<<a1<<a2<<b1<<b2<<c1+10000000000000.0<<c2+10000000000000.0;
+  sl[1]>>x1>>x2>>y1>>y2>>z1>>z2;
+  c=new console(2 of 2);
+  c[1]<<^str<<"SolveAB("<<^flt<<a1<<^str<<","<<^flt<<a2<<^str<<","<<^flt<<b1<<^str<<","<<^flt<<b2<<^str<<","<<^flt<<c1<<^str<<","<<^flt<<c2<<^str<<")"<<^nl
+      <<^str<<"Solved to ("<<^flt<<x1<<^str<<","<<^flt<<x2<<^str<<","<<^flt<<y1<<^str<<","<<^flt<<y2<<^str<<","<<^flt<<z1<<^str<<","<<^flt<<z2<<^str<<")"<<^nl<<^end;
+  Int zi1=0;
+  FLOAT2INT(z1,zi1);
+  String zis1="";
+  INT2STRING(zi1,zis1);
+  String zs1="";
+  FLOAT2STRING(z1,zs1);
+  Int zi2=0;
+  FLOAT2INT(z2,zi2);
+  String zis2="";
+  INT2STRING(zi2,zis2);
+  String zs2="";
+  FLOAT2STRING(z2,zs2);
+  if (x1=1.0) and (y1=0.0) and (x2=0.0) and (y2=1.0) and (zs1=zis1+".0") and (zs2=zis2+".0")
+  then this[2]<<3*zi1+zi2;
+  else c=new console(2 of 2);
+       c[1]<<^str<<"x1="<<^flt<<x1<<^nl;
+       c[1]<<^str<<"y1="<<^flt<<y1<<^nl;
+       c[1]<<^str<<"z1="<<^flt<<z1<<^nl;
+       c[1]<<^str<<"zs1="<<^str<<zs1<<^nl;
+       c[1]<<^str<<"zis1="<<^str<<zis1<<^nl;
+       c[1]<<^str<<"x2="<<^flt<<x2<<^nl;
+       c[1]<<^str<<"y2="<<^flt<<y2<<^nl;
+       c[1]<<^str<<"z2="<<^flt<<z2<<^nl;
+       c[1]<<^str<<"zs2="<<^str<<zs2<<^nl;
+       c[1]<<^str<<"zis2="<<^str<<zis2<<^nl<<^end;
+       this[2]<<0;
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( local SumTokens($list(String)(2 of 1 pure,2) lines, Int tokens) // {{{
+  ( local End(Int tokens) // {{{
+    ( c=new console(2 of 2);
+      c[1]<<^str<<"Result: "<<^int<<tokens<<^nl<<^end;
+    ) // }}}
+    lines[1]<<^pop;
+    lines[1]>>
+    {^nil:
+      End(tokens);
+     ^cons:
+      lines[1]>>a>>lines1;
+      lines1[1]<<^pop;
+      lines1[1]>>
+      {^nil:
+        End(tokens);
+       ^cons:
+        lines1[1]>>b>>lines2;
+        lines2[1]<<^pop;
+        lines2[1]>>
+        {^nil:
+          End(tokens);
+         ^cons:
+          lines2[1]>>c>>lines3;
+          ct=new counttokens(2 of 2);
+          ct[1]<<a<<b<<c;
+          ct[1]>>t;
+          c=new console(2 of 2);
+          c[1]<<^str<<"Used tokens: "<<^int<<t<<^nl<<^end;
+          SumTokens(lines3,tokens+t);
+        }
+      }
+    }
+  ) // }}}
+  SumTokens(lines,0);
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}

@@ -1,0 +1,173 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define ispure
+#define $parsexyres \
+  1->2:Int; \
+  1->2:Int; \
+  $end;
+#define $parsexy \
+  2->1:String; \
+  $parsexyres
+global $parsexy parsexy(1 ispure,2);
+local ispure service Service(parsexy (1 of 2) this) // {{{
+( this[2]>>line;
+  sf1=new strfind(2 of 2);
+  sf1[1]<<line<<"X";
+  sf1[1]>>pos;
+  if pos+1<=0
+  then this[2]<<0<<0;
+  else String line2=line%(pos+2);
+       sf2=new strfind(2 of 2);
+       sf2[1]<<line2<<",";
+       sf2[1]>>pos;
+       if pos+1<=0
+       then this[2]<<0<<0;
+       else String xstr=line2/pos;
+            Int x=0;
+            STRING2INT(xstr,x) pure;
+            String line3=line2%(pos+1);
+            sf3=new strfind(2 of 2);
+            sf3[1]<<line3<<"Y";
+            sf3[1]>>pos;
+            if pos+1<=0
+            then this[2]<<0<<0;
+            else String ystr=line3%(pos+2);
+                 Int y=0;
+                 STRING2INT(ystr,y) pure;
+                 this[2]<<x<<y;
+) // }}}
+|
+#define $counttokensres \
+  1->2:Int; \
+  $end;
+#define $counttokens \
+  2->1:String; \
+  2->1:String; \
+  2->1:String; \
+  $counttokensres
+global $counttokens counttokens(1 ispure,2);
+local ispure service Service(counttokens (1 of 2) this) // {{{
+( local ispure SolveAB($counttokensres(1 of 1 ispure,2) this, Int a1, Int a2, Int b1, Int b2, Int c1, Int c2, Int a) // {{{
+  ( c=new console(2 of 2);
+    c[1]<<^str<<"SolveAB("<<^int<<a1<<^str<<","<<^int<<a2<<^str<<","<<^int<<b1<<^str<<","<<^int<<b2<<^str<<","<<^int<<c1<<^str<<","<<^int<<c2<<^str<<","<<^int<<a<<^str<<")"<<^nl<<^end;
+    if (c1+1<=a*a1) or (c2+1<=a*a2)
+    then this[2]<<0;
+    else Int d1=c1-a*a1;
+         Int d2=c2-a*a2;
+         Int b=d1/b1;
+         c=new console(2 of 2);
+         c[1]<<^str<<" d1="<<^int<<d1<<^str<<" d2="<<^int<<d2<<^str<<" b="<<^int<<b<<^nl<<^end;
+         if (d1=b*b1) and (d2=b*b2)
+         then Int aa=d1/a1;
+              if (d1=aa*a1) and (d2=aa*a2) and (3*(a+aa)<=a*a+b)
+              then this[2]<<3*(a+aa);
+              else this[2]<<3*a+b;
+         else SolveAB(this,a1,a2,b1,b2,c1,c2,a+1);
+  ) // }}}
+  this[2]>>a>>b>>c;
+  pxy=new parsexy(2 of 2);
+  pxy[1]<<a;
+  pxy[1]>>a1>>a2;
+  pxy=new parsexy(2 of 2);
+  pxy[1]<<b;
+  pxy[1]>>b1>>b2;
+  pxy=new parsexy(2 of 2);
+  pxy[1]<<c;
+  pxy[1]>>c1>>c2;
+  SolveAB(this,a1,a2,b1,b2,c1,c2,0);
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( local SumTokens($list(String)(2 of 1 pure,2) lines, Int tokens) // {{{
+  ( local End(Int tokens) // {{{
+    ( c=new console(2 of 2);
+      c[1]<<^str<<"Result: "<<^int<<tokens<<^nl<<^end;
+    ) // }}}
+    lines[1]<<^pop;
+    lines[1]>>
+    {^nil:
+      End(tokens);
+     ^cons:
+      lines[1]>>a>>lines1;
+      lines1[1]<<^pop;
+      lines1[1]>>
+      {^nil:
+        End(tokens);
+       ^cons:
+        lines1[1]>>b>>lines2;
+        lines2[1]<<^pop;
+        lines2[1]>>
+        {^nil:
+          End(tokens);
+         ^cons:
+          lines2[1]>>c>>lines3;
+          ct=new counttokens(2 of 2);
+          ct[1]<<a<<b<<c;
+          ct[1]>>t;
+          c=new console(2 of 2);
+          c[1]<<^str<<"Used tokens: "<<^int<<t<<^nl<<^end;
+          SumTokens(lines3,tokens+t);
+        }
+      }
+    }
+  ) // }}}
+  SumTokens(lines,0);
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
