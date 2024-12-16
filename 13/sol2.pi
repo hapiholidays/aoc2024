@@ -119,35 +119,36 @@ local ispure service Service(counttokens (1 of 2) this) // {{{
   sl=new solvelin(2 of 2);
   sl[1]<<a1<<a2<<b1<<b2<<c1+10000000000000.0<<c2+10000000000000.0;
   sl[1]>>x1>>x2>>y1>>y2>>z1>>z2;
-  c=new console(2 of 2);
-  c[1]<<^str<<"SolveAB("<<^flt<<a1<<^str<<","<<^flt<<a2<<^str<<","<<^flt<<b1<<^str<<","<<^flt<<b2<<^str<<","<<^flt<<c1<<^str<<","<<^flt<<c2<<^str<<")"<<^nl
-      <<^str<<"Solved to ("<<^flt<<x1<<^str<<","<<^flt<<x2<<^str<<","<<^flt<<y1<<^str<<","<<^flt<<y2<<^str<<","<<^flt<<z1<<^str<<","<<^flt<<z2<<^str<<")"<<^nl<<^end;
-  Int zi1=0;
-  FLOAT2INT(z1,zi1);
-  String zis1="";
-  INT2STRING(zi1,zis1);
+  //c=new console(2 of 2);
+  //c[1]<<^str<<"SolveAB("<<^flt<<a1<<^str<<","<<^flt<<a2<<^str<<","<<^flt<<b1<<^str<<","<<^flt<<b2<<^str<<","<<^flt<<c1<<^str<<","<<^flt<<c2<<^str<<")"<<^nl
+  //    <<^str<<"Solved to ("<<^flt<<x1<<^str<<","<<^flt<<x2<<^str<<","<<^flt<<y1<<^str<<","<<^flt<<y2<<^str<<","<<^flt<<z1<<^str<<","<<^flt<<z2<<^str<<")"<<^nl<<^end;
   String zs1="";
   FLOAT2STRING(z1,zs1);
-  Int zi2=0;
-  FLOAT2INT(z2,zi2);
-  String zis2="";
-  INT2STRING(zi2,zis2);
+  sf1=new strfind(2 of 2);
+  sf1[1]<<zs1<<".";
+  sf1[1]>>pos1;
+  Int zi1=0;
+  String zis1=zs1/pos1;
+  debug("zis1="+zis1);
+  STRING2INT(zis1,zi1);
   String zs2="";
   FLOAT2STRING(z2,zs2);
-  if (x1=1.0) and (y1=0.0) and (x2=0.0) and (y2=1.0) and (zs1=zis1+".0") and (zs2=zis2+".0")
-  then this[2]<<3*zi1+zi2;
-  else c=new console(2 of 2);
-       c[1]<<^str<<"x1="<<^flt<<x1<<^nl;
-       c[1]<<^str<<"y1="<<^flt<<y1<<^nl;
-       c[1]<<^str<<"z1="<<^flt<<z1<<^nl;
-       c[1]<<^str<<"zs1="<<^str<<zs1<<^nl;
-       c[1]<<^str<<"zis1="<<^str<<zis1<<^nl;
-       c[1]<<^str<<"x2="<<^flt<<x2<<^nl;
-       c[1]<<^str<<"y2="<<^flt<<y2<<^nl;
-       c[1]<<^str<<"z2="<<^flt<<z2<<^nl;
-       c[1]<<^str<<"zs2="<<^str<<zs2<<^nl;
-       c[1]<<^str<<"zis2="<<^str<<zis2<<^nl<<^end;
-       this[2]<<0;
+  sf2=new strfind(2 of 2);
+  sf2[1]<<zs2<<".";
+  sf2[1]>>pos2;
+  Int zi2=0;
+  String zis2=zs2/pos2;
+  debug("zis2="+zis2);
+  STRING2INT(zis2,zi2);
+  Int zi1c=if ((zs1%(pos1+1))/3="0") or ((zs1%(pos1+1))/3="00") or ((zs1%(pos1+1))/3="000") then zi1
+           else if ((zs1%(pos1+1))/3="9") or ((zs1%(pos1+1))/3="99") or ((zs1%(pos1+1))/3="999") then zi1+1
+           else 0-1;
+  Int zi2c=if ((zs2%(pos2+1))/3="0") or ((zs2%(pos2+1))/3="00") or ((zs2%(pos2+1))/3="000") then zi2
+           else if ((zs2%(pos2+1))/3="9") or ((zs2%(pos2+1))/3="99") or ((zs2%(pos2+1))/3="999") then zi2+1
+           else 0-1;
+  if (x1=1.0) and (y1=0.0) and (x2=0.0) and (y2=1.0) and (0<=zi1c) and (0<=zi2c)
+  then this[2]<<3*zi1c+zi2c;
+  else this[2]<<0;
 ) // }}}
 |
 // Process data and print result

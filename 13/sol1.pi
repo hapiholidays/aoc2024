@@ -57,15 +57,15 @@ local ispure service Service(parsexy (1 of 2) this) // {{{
 global $counttokens counttokens(1 ispure,2);
 local ispure service Service(counttokens (1 of 2) this) // {{{
 ( local ispure SolveAB($counttokensres(1 of 1 ispure,2) this, Int a1, Int a2, Int b1, Int b2, Int c1, Int c2, Int a) // {{{
-  ( c=new console(2 of 2);
-    c[1]<<^str<<"SolveAB("<<^int<<a1<<^str<<","<<^int<<a2<<^str<<","<<^int<<b1<<^str<<","<<^int<<b2<<^str<<","<<^int<<c1<<^str<<","<<^int<<c2<<^str<<","<<^int<<a<<^str<<")"<<^nl<<^end;
+  ( //c=new console(2 of 2);
+    //c[1]<<^str<<"SolveAB("<<^int<<a1<<^str<<","<<^int<<a2<<^str<<","<<^int<<b1<<^str<<","<<^int<<b2<<^str<<","<<^int<<c1<<^str<<","<<^int<<c2<<^str<<","<<^int<<a<<^str<<")"<<^nl<<^end;
     if (c1+1<=a*a1) or (c2+1<=a*a2)
     then this[2]<<0;
     else Int d1=c1-a*a1;
          Int d2=c2-a*a2;
          Int b=d1/b1;
-         c=new console(2 of 2);
-         c[1]<<^str<<" d1="<<^int<<d1<<^str<<" d2="<<^int<<d2<<^str<<" b="<<^int<<b<<^nl<<^end;
+         //c=new console(2 of 2);
+         //c[1]<<^str<<" d1="<<^int<<d1<<^str<<" d2="<<^int<<d2<<^str<<" b="<<^int<<b<<^nl<<^end;
          if (d1=b*b1) and (d2=b*b2)
          then Int aa=d1/a1;
               if (d1=aa*a1) and (d2=aa*a2) and (3*(a+aa)<=a*a+b)
@@ -83,6 +83,8 @@ local ispure service Service(counttokens (1 of 2) this) // {{{
   pxy=new parsexy(2 of 2);
   pxy[1]<<c;
   pxy[1]>>c1>>c2;
+  c=new console(2 of 2);
+  c[1]<<^str<<"SolveAB("<<^int<<a1<<^str<<","<<^int<<a2<<^str<<","<<^int<<b1<<^str<<","<<^int<<b2<<^str<<","<<^int<<c1<<^str<<","<<^int<<c2<<^str<<")"<<^nl<<^end;
   SolveAB(this,a1,a2,b1,b2,c1,c2,0);
 ) // }}}
 |
