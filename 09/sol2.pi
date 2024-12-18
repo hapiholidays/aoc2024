@@ -1,0 +1,181 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $parsenumsres \
+  1->2:$list(Int)(2 of 1 pure,2); \
+  $end;
+#define $parsenums \
+  2->1:String; \
+  $parsenumsres
+global $parsenums parsenums(1 pure,2);
+local pure service Service(parsenums (1 of 2) this) // {{{
+( local pure Parse($parsenumsres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) rupd, String data) // {{{
+  ( if data&^length<=0
+    then // No more items
+      upd=new revlist(2 of 2);
+      upd<<Int;
+      upd[1]<<rupd;
+      this[2]<<upd;
+    else 
+      sf=new strfind(2 of 2);
+      sf[1]<<data<<" ";
+      sf[1]>>pos;
+      String nstr=if 1<=pos then data/pos else data;
+      String rest=if 1<=pos then data%(pos+1) else "";
+      Int n=0;
+      STRING2INT(nstr,n) pure;
+      rupd[1]<<^cons<<n;
+      Parse(this,rupd,rest);
+  ) // }}}
+  this[2]>>data;
+  rupd=new list(2 of 2);
+  rupd<<Int;
+  Parse(this,rupd,data);
+) // }}}
+|
+#define ispure pure
+#define $testequationres \
+  1->2:Bool; \
+  $end;
+#define $testequation \
+  2->1:Int; \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $testequationres
+global $testequation testequation(1 ispure,2);
+local ispure service Service(testequation (1 of 2) this) // {{{
+( this[2]>>res>>vals;
+  vals[1]<<^pop;
+  vals[1]>>
+  {^nil:
+    this[2]<<false; // No vals
+   ^cons:
+    vals[1]>>v1>>vtail;
+    vtail[1]<<^pop;
+    vtail[1]>>
+    {^nil:
+      if v1=res
+      then this[2]<<true;
+      else this[2]<<false;
+     ^cons:
+      vtail[1]>>v2>>t2; 
+      t2[1]<<^copy;
+      t2[1]>>t3;
+      t2[1]<<^cons<<v1*v2;
+      te1=new testequation(2 of 2);
+      te1[1]<<res<<t2;
+      te1[1]>>s1;
+      if s1
+      then t3[1]<<^end;
+           this[2]<<true;
+      else t3[1]<<^copy;
+           t3[1]>>t4;
+           t3[1]<<^cons<<v1+v2;
+           te2=new testequation(2 of 2);
+           te2[1]<<res<<t3;
+           te2[1]>>s2;
+           if s2
+           then t4[1]<<^end;
+                this[2]<<true;
+           else String v1str="";
+                String v2str="";
+                INT2STRING(v1,v1str) pure;
+                INT2STRING(v2,v2str) pure;
+                String v3str=v1str+v2str;
+                Int v3=0;
+                STRING2INT(v3str,v3) pure;
+                t4[1]<<^cons<<v3;
+                te3=new testequation(2 of 2);
+                te3[1]<<res<<t4;
+                te3[1]>>s3;
+                this[2]<<s3;
+    }
+  }
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines, Int sum) // {{{
+( lines[1]<<^pop;
+  lines[1]>>
+  {^nil:
+    c=new console(2 of 2);
+    c[1]<<^str<<"Sum of solvable equations: "<<^int<<sum<<^nl<<^end;
+   ^cons:
+    lines[1]>>line>>ltail;
+    Int pos=0;
+    sf=new strfind(2 of 2);
+    sf[1]<<line<<": ";
+    sf[1]>>pos;
+    Int res=0;
+    String resstr=line/pos;
+    STRING2INT(resstr,res);
+    String eq=line%(pos+2);
+    pu=new parsenums(2 of 2);
+    pu[1]<<eq;
+    pu[1]>>vals;
+    debug("Testing equation: "+line);
+    te=new testequation(2 of 2);
+    te[1]<<res<<vals;
+    te[1]>>solved;
+    if solved
+    then debug("Solved equation " + line);
+         Process(ltail,sum+res);
+    else debug("Unsolved equation " + line);
+         Process(ltail,sum);
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines,0);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}

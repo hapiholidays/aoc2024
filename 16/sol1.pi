@@ -10,7 +10,7 @@
 
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define ispure
+#define ispure pure
 #define $bestpathres \
   1->2:$list(String)(2 of 1 pure,2); \
   1->2:$map(Int,Int)(2 of 1 pure,2); \
@@ -23,65 +23,69 @@
   2->1:Int; \
   2->1:Int; \
   2->1:Int; \
+  2->1:Int; \
   $bestpathres
 global $bestpath bestpath(1 ispure,2);
 local ispure service Service(bestpath (1 of 2) this) // {{{
-( this[2]>>maze>>states>>x>>y>>dir>>score;
-  c=new console(2 of 2);
-  c[1]<<^str<<"bestpath "<<^int<<x<<^str<<","<<^int<<y<<^str<<","<<^int<<dir<<^str<<","<<^int<<score<<^nl<<^end;
+( this[2]>>maze>>states>>x>>y>>dir>>score>>maxscore;
+  if maxscore<=score
+  then this[2]<<maze<<states<<maxscore; else
+  Int state=dir*1000000+y*1000+x;
   maze[1]<<^get<<y;
   maze[1]>>
   {^err:
     maze[1]>>err;
-    this[2]<<maze<<states<<0-1;
+    this[2]<<maze<<states<<maxscore;
    ^val:
     maze[1]>>hline;
     if hline&x="#"&0 // Asume we stay inside the map
-    then this[2]<<maze<<states<<0-1;
+    then this[2]<<maze<<states<<maxscore;
     else if hline&x="E"&0 // Yay, we reached E
     then this[2]<<maze<<states<<score;
-    else local Cont($bestpathres(1 of 1 ispure,2) this, // {{{
-                    $list(String)(2 of 1 pure,2) maze,
-                    $map(Int,Int)(2 of 1 pure,2) states)
-         ( states[1]<<^set<<dir*1000000+y*1000*x<<score;
+    else local ispure Cont($bestpathres(1 of 1 ispure,2) this, // {{{
+                           $list(String)(2 of 1 pure,2) maze,
+                           $map(Int,Int)(2 of 1 pure,2) states)
+         ( //c=new console(2 of 2);
+           //c[1]<<^str<<"bestpath "<<^int<<state<<^str<<" score "<<^int<<score<<^nl<<^end;
+           states[1]<<^set<<state<<score;
            // Try forward
            bs1=new bestpath(2 of 2);
            bs1[1]<<maze<<states
                  <<if dir=1 then x+1 else if dir=3 then x-1 else x
                  <<if dir=0 then y-1 else if dir=2 then y+1 else y
-                 << dir <<score+1;
+                 << dir <<score+1<<maxscore;
            bs1[1]>>maze>>states>>score1;
            // Try turn left
            Int leftdir=if dir<=0 then 3 else dir-1;
            bs2=new bestpath(2 of 2);
-           bs2[1]<<maze<<states<<x<<y<<leftdir<<score+1000;
+           bs2[1]<<maze<<states<<x<<y<<leftdir<<score+1000<<maxscore;
            bs2[1]>>maze>>states>>score2;
            // Try turn right
            Int rightdir=if 3<=dir then 0 else dir+1;
            bs3=new bestpath(2 of 2);
-           bs3[1]<<maze<<states<<x<<y<<rightdir<<score+1000;
+           bs3[1]<<maze<<states<<x<<y<<rightdir<<score+1000<<maxscore;
            bs3[1]>>maze>>states>>score3;
            // Return best
            this[2]<<maze<<states;
-           if (score1<=0-1) and (score2<=score3)
-           then this[2]<<score2;
-           else if (score1<=0-1) and (score3<=score2)
-           then this[2]<<score3;
-           else if (score1<=score2) and (score1<=score3)
+           if (score1<=score2) and (score1<=score3)
            then this[2]<<score1;
            else if (score2<=score1) and (score2<=score3)
            then this[2]<<score2;
            else //if (score3<=score1) and (score3<=score2)
                 this[2]<<score3;
          ) // }}}
-         states[1]<<^lookup<<dir*1000000+y*1000+x;
+         states[1]<<^lookup<<state;
          states[1]>>
          {^nil:
+           //c=new console(2 of 2);
+           //c[1]<<^str<<"State "<<^int<<state<<^str<<" is new"<<^nl<<^end;
            Cont(this,maze,states);
           ^val:
            states[1]>>prevscore;
+           //c=new console(2 of 2);
+           //c[1]<<^str<<"State "<<^int<<state<<^str<<" had previous score "<<^int<<prevscore<<^nl<<^end;
            if prevscore<=score
-           then this[2]<<maze<<states<<0-1; // Nothing new
+           then this[2]<<maze<<states<<maxscore; // Nothing new
            else Cont(this,maze,states);
          }
   }
@@ -108,7 +112,7 @@ local Process($list(String)(2 of 1 pure,2) lines) // {{{
         states<<Int;
         states<<Int;
         states[1]<<stdorder_Int;
-        bp[1]<<lines<<states<<x<<y<<1<<0; // start position facing east score=0
+        bp[1]<<lines<<states<<x<<y<<0<<1000<<116000; // start position facing up score=1000 maxscore=20000 // Manual help
         bp[1]>>lines>>states>>minscore;
         lines[1]<<^end;
         states[1]<<^end;
