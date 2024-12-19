@@ -1,0 +1,161 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define ispure pure
+
+#define $parsenumsres \
+  1->2:$list(Int)(2 of 1 pure,2); \
+  $end;
+#define $parsenums \
+  2->1:String; \
+  $parsenumsres
+global $parsenums parsenums(1 pure,2);
+local pure service Service(parsenums (1 of 2) this) // {{{
+( local pure Parse($parsenumsres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) rupd, String data) // {{{
+  ( if data&^length<=0
+    then // No more items
+      upd=new revlist(2 of 2);
+      upd<<Int;
+      upd[1]<<rupd;
+      this[2]<<upd;
+    else 
+      sf=new strfind(2 of 2);
+      sf[1]<<data<<" ";
+      sf[1]>>pos;
+      String nstr=if 1<=pos then data/pos else data;
+      String rest=if 1<=pos then data%(pos+1) else "";
+      Int n=0;
+      STRING2INT(nstr,n) pure;
+      rupd[1]<<^cons<<n;
+      Parse(this,rupd,rest);
+  ) // }}}
+  this[2]>>data;
+  rupd=new list(2 of 2);
+  rupd<<Int;
+  Parse(this,rupd,data);
+) // }}}
+|
+#define $blinkres \
+  $list(Int)
+
+#define $blink \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $blinkres
+global $blink blink(1 ispure,2);
+local ispure service Service(blink (1 of 2) this) // {{{
+( local ispure Blink($blinkres(1 of 1 ispure,2) this, $list(Int)(2 of 1 pure,2) in, $list(Int)(2 of 1 pure,2) out) // {{{
+  ( in[1]<<^pop;
+    in[1]>>
+    {^nil:
+      rout=new revlist(2 of 2);
+      rout<<Int;
+      rout[1]<<out;
+      rout[1]<<^takeover<<this;
+     ^cons:
+      in[1]>>stone>>intail;
+      if stone=0
+      then out[1]<<^cons<<1;
+           Blink(this,intail,out);
+      else String stonestr="";
+           INT2STRING(stone,stonestr) pure;
+           Int slen=stonestr&^length;
+           if slen-(slen/2)*2=0
+      then String s1str=stonestr/(slen/2);
+           Int s1=0;
+           STRING2INT(s1str,s1) pure;
+           String s2str=stonestr%(slen/2);
+           Int s2=0;
+           STRING2INT(s2str,s2) pure;
+           out[1]<<^cons<<s2<<^cons<<s1; // In reverse order
+           Blink(this,intail,out);
+      else out[1]<<^cons<<stone*2024;
+           Blink(this,intail,out);
+    }
+  ) // }}}
+  this[2]>>stones;
+  nstones=new list(2 of 2);
+  nstones<<Int;
+  Blink(this,stones,nstones);
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( lines[1]<<^pop;
+  lines[1]>>
+  {^nil:
+    debug("No input");
+   ^cons:
+    lines[1]>>numsstr>>tail;
+    tail[1]<<^end;
+    pn=new parsenums(2 of 2);
+    pn[1]<<numsstr;
+    pn[1]>>nums;
+    local Blink($list(Int)(2 of 1 pure,2) stones, Int blinks) // {{{
+    ( if blinks<=0
+      then stones[1]<<^length;
+           stones[1]>>len;
+           c=new console(2 of 2);
+           c[1]<<^str<<"Number of stones: "<<^int<<len<<^nl<<^end;
+           stones[1]<<^end;
+      else bl=new blink(2 of 2);
+           bl[1]<<stones;
+           Blink(bl,blinks-1);
+    ) // }}}
+    Blink(nums,75);
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
