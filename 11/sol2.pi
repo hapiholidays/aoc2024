@@ -1,190 +1,199 @@
 #include <sys/args.pi>
 #include <sys/file.pi>
 #include <struct/list.pi>
-#include <struct/set.pi>
 #include <console.pi>
 #include <convert.pi>
 #include "listutils.pi"
 #include "strutils.pi"
+#include "map.pi"
 
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define FLOAT2STRING(i,val) HOST("{ ", val, ".reset(new libpi::String(((libpi::Float*)", i, ".get())->ToString())); }")
-#define FLOAT2INT(fval,ival) HOST("{ ", ival, ".reset(new libpi::Int(mpf_get_si(((libpi::Float*)", fval, ".get())->GetValue()))); }")
-//#undef INT2FLOAT
-//#define INT2FLOAT(ival,fval) HOST("{ ", fval, ".reset(new libpi::Float((mpz_t)((libpi::Int*)", ival, ".get())->GetValue())); }")
-#define ispure
-#define $parsexyres \
-  1->2:Float; \
-  1->2:Float; \
+#define ispure pure
+
+#define $parsenumsres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
   $end;
-#define $parsexy \
+#define $parsenums \
   2->1:String; \
-  $parsexyres
-global $parsexy parsexy(1 ispure,2);
-local ispure service Service(parsexy (1 of 2) this) // {{{
-( this[2]>>line;
-  sf1=new strfind(2 of 2);
-  sf1[1]<<line<<"X";
-  sf1[1]>>pos;
-  if pos+1<=0
-  then this[2]<<0.0<<0.0;
-  else String line2=line%(pos+2);
-       sf2=new strfind(2 of 2);
-       sf2[1]<<line2<<",";
-       sf2[1]>>pos;
-       if pos+1<=0
-       then this[2]<<0.0<<0.0;
-       else String xstr=line2/pos;
-            Float x=0.0;
-            STRING2FLOAT(xstr,x) pure;
-            String line3=line2%(pos+1);
-            sf3=new strfind(2 of 2);
-            sf3[1]<<line3<<"Y";
-            sf3[1]>>pos;
-            if pos+1<=0
-            then this[2]<<0.0<<0.0;
-            else String ystr=line3%(pos+2);
-                 Float y=0.0;
-                 STRING2FLOAT(ystr,y) pure;
-                 this[2]<<x<<y;
+  $parsenumsres
+global $parsenums parsenums(1 pure,2);
+local pure service Service(parsenums (1 of 2) this) // {{{
+( local pure Parse($parsenumsres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) upd, String data) // {{{
+  ( if data&^length<=0
+    then // No more items
+      this[2]<<upd;
+    else 
+      sf=new strfind(2 of 2);
+      sf[1]<<data<<" ";
+      sf[1]>>pos;
+      String nstr=if 1<=pos then data/pos else data;
+      String rest=if 1<=pos then data%(pos+1) else "";
+      Int n=0;
+      STRING2INT(nstr,n) pure;
+      upd[1]<<^lookup<<n;
+      upd[1]>>
+      {^nil:
+        upd[1]<<^set<<n<<1;
+        Parse(this,upd,rest);
+       ^val:
+        upd[1]>>v;
+        upd[1]<<^set<<n<<v+1;
+        Parse(this,upd,rest);
+      }
+  ) // }}}
+  this[2]>>data;
+  upd=new map(2 of 2);
+  upd<<Int;
+  upd<<Int;
+  upd[1]<<stdorder_Int;
+  Parse(this,upd,data);
 ) // }}}
 |
-#define $solvelinres \
-  1->2:Float; \
-  1->2:Float; \
-  1->2:Float; \
-  1->2:Float; \
-  1->2:Float; \
-  1->2:Float; \
+#define $blinkres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
   $end;
-#define $solvelin \
-  2->1:Float; \
-  2->1:Float; \
-  2->1:Float; \
-  2->1:Float; \
-  2->1:Float; \
-  2->1:Float; \
-  $solvelinres
-global $solvelin solvelin(1 ispure,2);
-local ispure service Service(solvelin (1 of 2) this) // {{{
-( this[2]>>x1>>x2>>y1>>y2>>z1>>z2;
-  if (x1=0.0) and (not (x2=0.0))
-  then sl=new solvelin(2 of 2);
-       sl[1]<<x2<<x1<<y2<<y1<<z2<<z1;
-       sl[1]>>rx1>>rx2>>ry1>>ry2>>rz1>>rz2;
-       this[2]<<rx1<<rx2<<ry1<<ry2<<rz1<<rz2;
-  else if (not (x1=0.0)) and (not (x2=0.0))
-  then Float f=x2/x1;
-       sl=new solvelin(2 of 2);
-       sl[1]<<x1<<0.0<<y1<<y2-f*y1<<z1<<z2-f*z1;
-       sl[1]>>rx1>>rx2>>ry1>>ry2>>rz1>>rz2;
-       this[2]<<rx1<<rx2<<ry1<<ry2<<rz1<<rz2;
-  else if (y2=0.0) and (not (z2=0.0))
-  then this[2]<<0.0<<0.0<<0.0<<0.0<<1.0<<0.0;
-  else if (y2=0.0) and (z2=0.0)
-  then this[2]<<1.0<<0.0<<y1/x1<<0.0<<z1/x1<<0.0;
-  else if (not (y2=0.0)) and (not (y1=0.0))
-  then Float f=y1/y2;
-       sl=new solvelin(2 of 2);
-       sl[1]<<x1-f*x2<<x2<<0.0<<y2<<z1-f*z2<<z2;
-       sl[1]>>rx1>>rx2>>ry1>>ry2>>rz1>>rz2;
-       this[2]<<rx1<<rx2<<ry1<<ry2<<rz1<<rz2;
-  else //x1!=0 x2=0 y1=0 y2!=0 -> just scale!
-       //do not handle case x1=x2=0
-       this[2]<<1.0<<0.0<<0.0<<1.0<<z1/x1<<z2/y2;
+#define $blink \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  $blinkres
+global $blink blink(1 ispure,2);
+local ispure service Service(blink (1 of 2) this) // {{{
+( this[2]>>in;
+  this[2]>>out;
+  in[1]<<^pop;
+  in[1]>>
+  {^nil:
+    this[2]<<out;
+   ^tree:
+    in[1]>>v>>c>>in1>>in2;
+    blink1=new blink(2 of 2);
+    blink1[1]<<in1<<out;
+    blink1[1]>>out;
+    blink2=new blink(2 of 2);
+    blink2[1]<<in2<<out;
+    blink2[1]>>out;
+    if v=0
+    then out[1]<<^lookup<<1;
+         out[1]>>
+         {^nil:
+           out[1]<<^set<<1<<c;
+           this[2]<<out;
+          ^val:
+           out[1]>>c1;
+           out[1]<<^set<<1<<c+c1;
+           this[2]<<out;
+         }
+    else String vstr="";
+         INT2STRING(v,vstr) pure;
+         Int vlen=vstr&^length;
+         if vlen-(vlen/2)*2=0
+    then String v1str=vstr/(vlen/2);
+         Int v1=0;
+         STRING2INT(v1str,v1) pure;
+         String v2str=vstr%(vlen/2);
+         Int v2=0;
+         STRING2INT(v2str,v2) pure;
+         out[1]<<^lookup<<v1;
+         out[1]>>
+         {^nil:
+           out[1]<<^set<<v1<<c;
+           out[1]<<^lookup<<v2;
+           out[1]>>
+           {^nil:
+             out[1]<<^set<<v2<<c;
+             this[2]<<out;
+            ^val:
+             out[1]>>c2;
+             out[1]<<^set<<v2<<c+c2;
+             this[2]<<out;
+           }
+          ^val:
+           out[1]>>c1;
+           out[1]<<^set<<v1<<c+c1;
+           out[1]<<^lookup<<v2;
+           out[1]>>
+           {^nil:
+             out[1]<<^set<<v2<<c;
+             this[2]<<out;
+            ^val:
+             out[1]>>c2;
+             out[1]<<^set<<v2<<c+c2;
+             this[2]<<out;
+           }
+         }
+    else out[1]<<^lookup<<v*2024;
+         out[1]>>
+         {^nil:
+           out[1]<<^set<<v*2024<<c;
+           this[2]<<out;
+          ^val:
+           out[1]>>c1;
+           out[1]<<^set<<v*2024<<c+c1;
+           this[2]<<out;
+         }
+  }
 ) // }}}
 |
-#define $counttokensres \
+#define $summapres \
   1->2:Int; \
   $end;
-#define $counttokens \
-  2->1:String; \
-  2->1:String; \
-  2->1:String; \
-  $counttokensres
-global $counttokens counttokens(1 ispure,2);
-local ispure service Service(counttokens (1 of 2) this) // {{{
-( this[2]>>a>>b>>c;
-  pxy=new parsexy(2 of 2);
-  pxy[1]<<a;
-  pxy[1]>>a1>>a2;
-  pxy=new parsexy(2 of 2);
-  pxy[1]<<b;
-  pxy[1]>>b1>>b2;
-  pxy=new parsexy(2 of 2);
-  pxy[1]<<c;
-  pxy[1]>>c1>>c2;
-  
-  sl=new solvelin(2 of 2);
-  sl[1]<<a1<<a2<<b1<<b2<<c1+10000000000000.0<<c2+10000000000000.0;
-  sl[1]>>x1>>x2>>y1>>y2>>z1>>z2;
-  //c=new console(2 of 2);
-  //c[1]<<^str<<"SolveAB("<<^flt<<a1<<^str<<","<<^flt<<a2<<^str<<","<<^flt<<b1<<^str<<","<<^flt<<b2<<^str<<","<<^flt<<c1<<^str<<","<<^flt<<c2<<^str<<")"<<^nl
-  //    <<^str<<"Solved to ("<<^flt<<x1<<^str<<","<<^flt<<x2<<^str<<","<<^flt<<y1<<^str<<","<<^flt<<y2<<^str<<","<<^flt<<z1<<^str<<","<<^flt<<z2<<^str<<")"<<^nl<<^end;
-  String zs1="";
-  FLOAT2STRING(z1,zs1);
-  sf1=new strfind(2 of 2);
-  sf1[1]<<zs1<<".";
-  sf1[1]>>pos1;
-  Int zi1=0;
-  String zis1=zs1/pos1;
-  STRING2INT(zis1,zi1);
-  String zs2="";
-  FLOAT2STRING(z2,zs2);
-  sf2=new strfind(2 of 2);
-  sf2[1]<<zs2<<".";
-  sf2[1]>>pos2;
-  Int zi2=0;
-  String zis2=zs2/pos2;
-  STRING2INT(zis2,zi2);
-  Int zi1c=if ((zs1%(pos1+1))/3="0") or ((zs1%(pos1+1))/3="00") or ((zs1%(pos1+1))/3="000") then zi1
-           else if ((zs1%(pos1+1))/3="9") or ((zs1%(pos1+1))/3="99") or ((zs1%(pos1+1))/3="999") then zi1+1
-           else 0-1;
-  Int zi2c=if ((zs2%(pos2+1))/3="0") or ((zs2%(pos2+1))/3="00") or ((zs2%(pos2+1))/3="000") then zi2
-           else if ((zs2%(pos2+1))/3="9") or ((zs2%(pos2+1))/3="99") or ((zs2%(pos2+1))/3="999") then zi2+1
-           else 0-1;
-  if (x1=1.0) and (y1=0.0) and (x2=0.0) and (y2=1.0) and (0<=zi1c) and (0<=zi2c)
-  then this[2]<<3*zi1c+zi2c;
-  else this[2]<<0;
+#define $summap \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  $summapres
+global $summap summap(1 pure,2);
+local pure service Service(summap (1 of 2) this) // {{{
+( this[2]>>s;
+  s[1]<<^pop;
+  s[1]>>
+  {^nil:
+    this[2]<<0;
+   ^tree:
+    s[1]>>v>>c>>s1>>s2;
+    sum1=new summap(2 of 2);
+    sum1[1]<<s1;
+    sum1[1]>>c1;
+    sum2=new summap(2 of 2);
+    sum2[1]<<s2;
+    sum2[1]>>c2;
+    this[2]<<c+c1+c2;
+  }
 ) // }}}
-|
+| // }}}
 // Process data and print result
 local Process($list(String)(2 of 1 pure,2) lines) // {{{
-( local SumTokens($list(String)(2 of 1 pure,2) lines, Int tokens) // {{{
-  ( local End(Int tokens) // {{{
-    ( c=new console(2 of 2);
-      c[1]<<^str<<"Result: "<<^int<<tokens<<^nl<<^end;
+( lines[1]<<^pop;
+  lines[1]>>
+  {^nil:
+    debug("No input");
+   ^cons:
+    lines[1]>>numsstr>>tail;
+    tail[1]<<^end;
+    pn=new parsenums(2 of 2);
+    pn[1]<<numsstr;
+    pn[1]>>nums;
+    local Blink($map(Int,Int)(2 of 1 pure,2) stones, Int blinks) // {{{
+    ( if blinks<=0
+      then sm=new summap(2 of 2);
+           sm[1]<<stones;
+           sm[1]>>count;
+           c=new console(2 of 2);
+           c[1]<<^str<<"Number of stones: "<<^int<<count<<^nl<<^end;
+      else bl=new blink(2 of 2);
+           nstones=new map(2 of 2);
+           nstones<<Int;
+           nstones<<Int;
+           nstones[1]<<stdorder_Int;
+           bl[1]<<stones<<nstones;
+           bl[1]>>stones;
+           stones[1]<<^size;
+           stones[1]>>size;
+           //c=new console(2 of 2);
+           //c[1]<<^str<<"Blink("<<^int<<blinks<<^str<<") has size: "<<^int<<size<<^nl<<^end;
+           Blink(stones,blinks-1);
     ) // }}}
-    lines[1]<<^pop;
-    lines[1]>>
-    {^nil:
-      End(tokens);
-     ^cons:
-      lines[1]>>a>>lines1;
-      lines1[1]<<^pop;
-      lines1[1]>>
-      {^nil:
-        End(tokens);
-       ^cons:
-        lines1[1]>>b>>lines2;
-        lines2[1]<<^pop;
-        lines2[1]>>
-        {^nil:
-          End(tokens);
-         ^cons:
-          lines2[1]>>c>>lines3;
-          ct=new counttokens(2 of 2);
-          ct[1]<<a<<b<<c;
-          ct[1]>>t;
-          c=new console(2 of 2);
-          c[1]<<^str<<"Used tokens: "<<^int<<t<<^nl<<^end;
-          SumTokens(lines3,tokens+t);
-        }
-      }
-    }
-  ) // }}}
-  SumTokens(lines,0);
+    Blink(nums,75);
+  }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
 local ProcessFile($infile(2 of 1,2) fin) // {{{

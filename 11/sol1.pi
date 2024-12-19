@@ -108,7 +108,7 @@ local Process($list(String)(2 of 1 pure,2) lines) // {{{
            bl[1]<<stones;
            Blink(bl,blinks-1);
     ) // }}}
-    Blink(nums,75);
+    Blink(nums,25);
   }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
