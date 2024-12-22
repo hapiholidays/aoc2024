@@ -7,128 +7,254 @@
 #include "listutils.pi"
 #include "strutils.pi"
 
+#define ispure pure
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define $parsenumsres \
-  1->2:$list(Int)(2 of 1 pure,2); \
-  $end;
-#define $parsenums \
-  2->1:String; \
-  $parsenumsres
-global $parsenums parsenums(1 pure,2);
-local pure service Service(parsenums (1 of 2) this) // {{{
-( local pure Parse($parsenumsres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) rupd, String data) // {{{
-  ( if data&^length<=0
-    then // No more items
-      upd=new revlist(2 of 2);
-      upd<<Int;
-      upd[1]<<rupd;
-      this[2]<<upd;
-    else 
-      sf=new strfind(2 of 2);
-      sf[1]<<data<<" ";
-      sf[1]>>pos;
-      String nstr=if 1<=pos then data/pos else data;
-      String rest=if 1<=pos then data%(pos+1) else "";
-      Int n=0;
-      STRING2INT(nstr,n) pure;
-      rupd[1]<<^cons<<n;
-      Parse(this,rupd,rest);
-  ) // }}}
-  this[2]>>data;
-  rupd=new list(2 of 2);
-  rupd<<Int;
-  Parse(this,rupd,data);
+#define $nlist \
+  2->1:Int; \
+  2->1:Int; \
+  $list(Int)
+global $nlist nlist(1 pure,2);
+local pure service Service(nlist (1 of 2) this) // {{{
+( this[2]>>x>>n;
+  if n<=0
+  then res=new list(2 of 2);
+       res<<Int;
+       res[1]<<^takeover<<this;
+  else res=new nlist(2 of 2);
+       res[1]<<x<<n-1<<^cons<<x;
+       res[1]<<^takeover<<this;
 ) // }}}
 |
-#define ispure pure
-#define $testequationres \
-  1->2:Bool; \
-  $end;
-#define $testequation \
+#define $parsediskmap \
   2->1:Int; \
-  2->1:$list(Int)(2 of 1 pure,2); \
-  $testequationres
-global $testequation testequation(1 ispure,2);
-local ispure service Service(testequation (1 of 2) this) // {{{
-( this[2]>>res>>vals;
-  vals[1]<<^pop;
-  vals[1]>>
+  2->1:String; \
+  $list(Int)
+global $parsediskmap parsediskmap(1 ispure,2);
+local ispure service Service(parsediskmap (1 of 2) this) // {{{
+( this[2]>>fid>>data;
+  if data&^length<=0
+  then res=new list(2 of 2);
+       res<<Int;
+       res[1]<<^takeover<<this;
+  else if data&^length<=1
+  then Int size=0;
+       STRING2INT(data,size) pure;
+       res=new nlist(2 of 2);
+       res[1]<<fid<<size<<^takeover<<this;
+  else String sizestr=data/1;
+       String data2=data%1;
+       String freestr=data2/1;
+       String data3=data2%1;
+       res3=new parsediskmap(2 of 2);
+       res3[1]<<fid+1<<data3;
+       Int size=0;
+       STRING2INT(sizestr,size) pure;
+       Int free=0;
+       STRING2INT(freestr,free) pure;
+       res2=new nlist(2 of 2);
+       res2[1]<<0-1<<free;
+       res=new nlist(2 of 2);
+       res[1]<<fid<<size;
+       res[1]<<^append<<res2;
+       res[1]<<^append<<res3;
+       res[1]<<^takeover<<this;
+) // }}}
+|
+#define $popfile \
+  2->1:$list(Int)(2 of 1 pure,2); /* diskmap */\
+  1->2:Int;                       /* file id */\
+  1->2:Int;                       /* file length */\
+  1->2:$list(Int)(2 of 1 pure,2); /* diskmap after file */\
+  $list(Int)                      /* diskmap before file */
+global $popfile popfile(1 ispure,2);
+local ispure service Service(popfile (1 of 2) this) // {{{
+( this[2]>>data;
+  data[1]<<^pop;
+  data[1]>>
   {^nil:
-    this[2]<<false; // No vals
+    this[2]<<0-1<<0-1;
+    res1=new list(2 of 2);
+    res1<<Int;
+    this[2]<<res1;
+    res2=new list(2 of 2);
+    res2<<Int;
+    res2[1]<<^takeover<<this;
    ^cons:
-    vals[1]>>v1>>vtail;
-    vtail[1]<<^pop;
-    vtail[1]>>
-    {^nil:
-      if v1=res
-      then this[2]<<true;
-      else this[2]<<false;
-     ^cons:
-      vtail[1]>>v2>>t2; 
-      t2[1]<<^copy;
-      t2[1]>>t3;
-      t2[1]<<^cons<<v1*v2;
-      te1=new testequation(2 of 2);
-      te1[1]<<res<<t2;
-      te1[1]>>s1;
-      if s1
-      then t3[1]<<^end;
-           this[2]<<true;
-      else t3[1]<<^copy;
-           t3[1]>>t4;
-           t3[1]<<^cons<<v1+v2;
-           te2=new testequation(2 of 2);
-           te2[1]<<res<<t3;
-           te2[1]>>s2;
-           if s2
-           then t4[1]<<^end;
-                this[2]<<true;
-           else String v1str="";
-                String v2str="";
-                INT2STRING(v1,v1str) pure;
-                INT2STRING(v2,v2str) pure;
-                String v3str=v1str+v2str;
-                Int v3=0;
-                STRING2INT(v3str,v3) pure;
-                t4[1]<<^cons<<v3;
-                te3=new testequation(2 of 2);
-                te3[1]<<res<<t4;
-                te3[1]>>s3;
-                this[2]<<s3;
-    }
+    data[1]>>head>>tail;
+    restail=new popfile(2 of 2);
+    restail[1]<<tail;
+    restail[1]>>v>>l>>rest;
+    if v=0-1
+    then if head=0-1
+         then rest[1]<<^cons<<head;
+              this[2]<<0-1<<0-1<<rest;
+              restail[1]<<^takeover<<this;
+         else this[2]<<head<<1<<rest;
+              restail[1]<<^takeover<<this;
+    else if head=v
+         then this[2]<<v<<l+1<<rest;
+              restail[1]<<^takeover<<this;
+         else this[2]<<v<<l<<rest;
+              restail[1]<<^cons<<head<<^takeover<<this;
+  }
+) // }}}
+|
+#define $testfreeres \
+  1->2:$list(Int)(2 of 1 pure,2); /* diskmap */\
+  1->2:Bool; /* room here */\
+  $end;
+#define $testfree \
+  2->1:$list(Int)(2 of 1 pure,2); /* diskmap */\
+  2->1:Int; /* file id */\
+  $testfreeres
+global $testfree testfree(1 ispure,2);
+local ispure service Service(insfile (1 of 2) this) // {{{
+( this[2]>>data>>size;
+  local Test($testfreeres(1 of 1 ispure,2) this, $list(Int)(2 of 1 pure,2) data, Int pos) // {{{
+  ( if size<=pos
+    then this[2]<<data<<True;
+    else data[1]<<^get<<pos;
+         data[1]>>
+         {^err:
+           data[1]>>err;
+           this[2]<<data<<False;
+          ^val:
+           data[1]>>val;
+           if 0<=val
+           then this[2]<<data<<False;
+           else Test(this,data,pos+1);
+         }
+  ) // }}}
+  Test(this,data,0);
+) // }}}
+|
+#define $insfileres \
+  1->2 \
+  {^err: \
+    $list(Int)(2 of 1 pure,2); /* diskmap */\
+   ^ok: \
+    $list(Int)(2 of 1 pure,2); /* updated diskmap */\
+  }
+#define $insfile \
+  2->1:$list(Int)(2 of 1 pure,2); /* diskmap */\
+  2->1:Int; /* file id */\
+  2->1:Int; /* file length */\
+  $insfileres
+global $insfile insfile(1 ispure,2);
+local ispure service Service(insfile (1 of 2) this) // {{{
+( this[2]>>data>>id>>len;
+  tf=new testfree(2 of 2);
+  tf[1]<<data<<len;
+  tf[1]>>data>>free;
+  if free
+  then sl=new splitlist(2 of 2);
+       sl<<Int;
+       sl[1]<<data<<len;
+       sl[1]>>junk;
+       junk[1]<<^end;
+       file=new nlist(2 of 2);
+       file[1]<<id<<len;
+       file[1]<<^append<<sl;
+       this[2]<<^ok;
+       file[1]<<^takeover<<this;
+  else data[1]<<^pop;
+       data[1]>>
+       {^nil:
+         this[2]<<^err;
+         res=new list(2 of 2);
+         res<<Int;
+         res[1]<<^takeover<<this;
+        ^cons:
+         data[1]>>head>>tail;
+         inf=new insfile(2 of 2);
+         inf[1]<<tail<<id<<len;
+         inf[1]>>
+         {^err:
+           inf[1]<<^cons<<head;
+           this[2]<<^err;
+           inf[1]<<^takeover<<this;
+          ^ok:
+           inf[1]<<^cons<<head;
+           this[2]<<^ok;
+           inf[1]<<^takeover<<this;
+         }
+       }
+) // }}}
+|
+#define $compressdiskmap \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $list(Int)
+global $compressdiskmap compressdiskmap(1 ispure,2);
+local ispure service Service(compressdiskmap (1 of 2) this) // {{{
+( this[2]>>dm;
+  pf=new popfile(2 of 2);
+  pf[1]<<dm;
+  pf[1]>>fid>>len>>rest;
+  if 0<=fid
+  then inf=new insfile(2 of 2);
+       inf[1]<<pf<<fid<<len;
+       inf[1]>>
+       {^err:
+         file=new nlist(2 of 2);
+         file[1]<<fid<<len;
+         file[1]<<^append<<rest;
+         cd=new compressdiskmap(2 of 2);
+         cd[1]<<inf;
+         cd[1]<<^append<<file;
+         cd[1]<<^takeover<<this;
+        ^ok:
+         cd=new compressdiskmap(2 of 2);
+         cd[1]<<inf;
+         cd[1]<<^append<<rest;
+         cd[1]<<^takeover<<this;
+       }
+  else pf[1]<<^end;
+       rest[1]<<^takeover<<thid;
+) // }}}
+|
+#define $diskmapchecksum \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:Int; \
+  1->2:Int; \
+  $end;
+global $diskmapchecksum diskmapchecksum(1 ispure,2);
+local ispure service Service(diskmapchecksum (1 of 2) this) // {{{
+( this[2]>>dm>>i;
+  dm[1]<<^pop;
+  dm[1]>>
+  {^nil:
+    this[2]<<0;
+   ^cons:
+    dm[1]>>head>>tail;
+    dmc=new diskmapchecksum(2 of 2);
+    dmc[1]<<tail<<i+1;
+    dmc[1]>>r;
+    this[2]<<r+i*head;
   }
 ) // }}}
 |
 // Process data and print result
-local Process($list(String)(2 of 1 pure,2) lines, Int sum) // {{{
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
 ( lines[1]<<^pop;
   lines[1]>>
   {^nil:
-    c=new console(2 of 2);
-    c[1]<<^str<<"Sum of solvable equations: "<<^int<<sum<<^nl<<^end;
+    debug("No diskmap!");
    ^cons:
     lines[1]>>line>>ltail;
-    Int pos=0;
-    sf=new strfind(2 of 2);
-    sf[1]<<line<<": ";
-    sf[1]>>pos;
-    Int res=0;
-    String resstr=line/pos;
-    STRING2INT(resstr,res);
-    String eq=line%(pos+2);
-    pu=new parsenums(2 of 2);
-    pu[1]<<eq;
-    pu[1]>>vals;
-    debug("Testing equation: "+line);
-    te=new testequation(2 of 2);
-    te[1]<<res<<vals;
-    te[1]>>solved;
-    if solved
-    then debug("Solved equation " + line);
-         Process(ltail,sum+res);
-    else debug("Unsolved equation " + line);
-         Process(ltail,sum);
+    ltail[1]<<^end;
+    pdm=new parsediskmap(2 of 2);
+    pdm[1]<<0<<line;
+    cdm=new compressdiskmap(2 of 2);
+    cdm[1]<<pdm;
+    pl=new printlist(2 of 2);
+    pl<<Int;
+    pl[1]<<int2string<<cdm;
+    //dmc=new diskmapchecksum(2 of 2);
+    //dmc[1]<<cdm<<0;
+    //dmc[1]>>checksum;
+    //c=new console(2 of 2);
+    //c[1]<<^str<<"Checksum: "<<^int<<checksum<<^nl<<^end;
   }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
@@ -147,7 +273,7 @@ local ProcessFile($infile(2 of 1,2) fin) // {{{
       rlines=new revlist(2 of 2);
       rlines<<String;
       rlines[1]<<lines;
-      Process(rlines,0);
+      Process(rlines);
     }
   ) // }}}
   lines=new list(2 of 2);

@@ -95,6 +95,42 @@ local pure service RevList(revlist (1 of 2) this) // {{{
   Rev(src,dst,this);
 ) // }}}
 | // }}}
+// splitlist: Reverse List Service // {{{
+#define $splitlist \
+  2:#elt; \
+  2->1:$list(#elt)(2 of 1 pure,2); \
+  2->1:Int; \
+  1->2:$list(#elt)(2 of 1 pure,2); \
+  $list(#elt)
+global $splitlist splitlist(1 pure,2);
+local pure service Service(splitlist (1 of 2) this) // {{{
+( this>>#elt;
+  this[2]>>lst>>len;
+  if 1<=len
+  then lst[1]<<^pop;
+       lst[1]>>
+       {^nil:
+         res=new list(2 of 2);
+         res<<#elt;
+         res2=new list(2 of 2);
+         res2<<#elt;
+         this[2]<<res2;
+         res[1]<<^takeover<<this;
+        ^cons:
+         lst[1]>>head>>tail;
+         res=new splitlist(2 of 2);
+         res<<#elt;
+         res[1]<<tail<<len-1;
+         res[1]>>res2;
+         this[2]<<res2;
+         res[1]<<^cons<<head<<^takeover<<this;
+       }
+  else res=new list(2 of 2);
+       res<<#elt;
+       this[2]<<lst;
+       res[1]<<^takeover<<this;
+) // }}}
+| // }}}
 // list2str: Make string representation of list // {{{
 #define $list2str \
   2:#elt; \

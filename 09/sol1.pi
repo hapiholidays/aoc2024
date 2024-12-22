@@ -7,39 +7,161 @@
 #include "listutils.pi"
 #include "strutils.pi"
 
-#define ispure
+#define ispure pure
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define $parsediskmapres \
-  1->2:$list(Int)(2 of 1 pure,2); \
-  $end;
+#define $nlist \
+  2->1:Int; \
+  2->1:Int; \
+  $list(Int)
+global $nlist nlist(1 pure,2);
+local pure service Service(nlist (1 of 2) this) // {{{
+( this[2]>>x>>n;
+  if n<=0
+  then res=new list(2 of 2);
+       res<<Int;
+       res[1]<<^takeover<<this;
+  else res=new nlist(2 of 2);
+       res[1]<<x<<n-1<<^cons<<x;
+       res[1]<<^takeover<<this;
+) // }}}
+|
 #define $parsediskmap \
+  2->1:Int; \
   2->1:String; \
-  $parseupdres
-global $parsediskmap parsediskmap(1 pure,2);
-local pure service Service(parsediskmap (1 of 2) this) // {{{
-( local pure Parse($parsediskmapres(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) rupd, String data) // {{{
-  ( if data&^length<=0
-    then // No more items
-      upd=new revlist(2 of 2);
-      upd<<Int;
-      upd[1]<<rupd;
-      this[2]<<upd;
-    else 
-      sf=new strfind(2 of 2);
-      sf[1]<<data<<" ";
-      sf[1]>>pos;
-      String nstr=if 1<=pos then data/pos else data;
-      String rest=if 1<=pos then data%(pos+1) else "";
-      Int n=0;
-      STRING2INT(nstr,n) pure;
-      rupd[1]<<^cons<<n;
-      Parse(this,rupd,rest);
+  $list(Int)
+global $parsediskmap parsediskmap(1 ispure,2);
+local ispure service Service(parsediskmap (1 of 2) this) // {{{
+( this[2]>>fid>>data;
+  if data&^length<=0
+  then res=new list(2 of 2);
+       res<<Int;
+       res[1]<<^takeover<<this;
+  else if data&^length<=1
+  then Int size=0;
+       STRING2INT(data,size) pure;
+       res=new nlist(2 of 2);
+       res[1]<<fid<<size<<^takeover<<this;
+  else String sizestr=data/1;
+       String data2=data%1;
+       String freestr=data2/1;
+       String data3=data2%1;
+       res3=new parsediskmap(2 of 2);
+       res3[1]<<fid+1<<data3;
+       Int size=0;
+       STRING2INT(sizestr,size) pure;
+       Int free=0;
+       STRING2INT(freestr,free) pure;
+       res2=new nlist(2 of 2);
+       res2[1]<<0-1<<free;
+       res=new nlist(2 of 2);
+       res[1]<<fid<<size;
+       res[1]<<^append<<res2;
+       res[1]<<^append<<res3;
+       res[1]<<^takeover<<this;
+) // }}}
+|
+#define $countused \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  1->2:Int; \
+  $list(Int)
+global $countused countused(1 ispure,2);
+local ispure service Service(countused (1 of 2) this) // {{{
+( this[2]>>data;
+  data[1]<<^pop;
+  data[1]>>
+  {^nil:
+    this[2]<<0;
+    res=new list(2 of 2);
+    res<<Int;
+    res[1]<<^takeover<<this;
+   ^cons:
+    data[1]>>head>>tail;
+    restail=new countused(2 of 2);
+    restail[1]<<tail;
+    restail[1]>>r;
+    restail[1]<<^cons<<head;
+    if 0<=head
+    then this[2]<<r+1;
+         restail[1]<<^takeover<<this;
+    else this[2]<<r;
+         restail[1]<<^takeover<<this;
+  }
+) // }}}
+|
+#define $compressdiskmap \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $list(Int)
+global $compressdiskmap compressdiskmap(1 ispure,2);
+local ispure service Service(compressdiskmap (1 of 2) this) // {{{
+( this[2]>>dm;
+  cu=new countused(2 of 2);
+  cu[1]<<dm;
+  cu[1]>>used;
+  sl=new splitlist(2 of 2);
+  sl<<Int;
+  sl[1]<<cu<<used;
+  sl[1]>>free;
+  rfree=new revlist(2 of 2);
+  rfree<<Int;
+  rfree[1]<<free;
+  local ispure Compress($list(Int)(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) dm, $list(Int)(2 of 1 pure,2) rfree, $list(Int)(2 of 1 pure,2) res) // {{{
+  ( dm[1]<<^pop;
+    dm[1]>>
+    {^nil:
+      rres=new revlist(2 of 2);
+      rres<<Int;
+      rres[1]<<res;
+      rres[1]<<^takeover<<this;
+      rfree[1]<<^end;
+     ^cons:
+      dm[1]>>head>>tail;
+      if 0<=head
+      then res[1]<<^cons<<head;
+           Compress(this,tail,rfree,res);
+      else local ispure PopFree($list(Int)(1 of 1 pure,2) this, $list(Int)(2 of 1 pure,2) dm, $list(Int)(2 of 1 pure,2) rfree, $list(Int)(2 of 1 pure,2) res) // {{{
+           ( rfree[1]<<^pop;
+             rfree[1]>>
+             {^nil: // This should not happen
+               res[1]<<^cons<<0-1;
+               rf=new list(2 of 2);
+               rf<<Int;
+               Compress(this,dm,rf,res);
+              ^cons:
+               rfree[1]>>head>>tail;
+               if 0<=head
+               then res[1]<<^cons<<head;
+                    Compress(this,dm,tail,res);
+               else PopFree(this,dm,tail,res);
+             }
+           ) // }}}
+           PopFree(this,tail,rfree,res);
+    }
   ) // }}}
-  this[2]>>data;
-  rupd=new list(2 of 2);
-  rupd<<Int;
-  Parse(this,rupd,data);
+  res=new list(2 of 2);
+  res<<Int;
+  Compress(this,sl,rfree,res);
+) // }}}
+|
+#define $diskmapchecksum \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:Int; \
+  1->2:Int; \
+  $end;
+global $diskmapchecksum diskmapchecksum(1 ispure,2);
+local ispure service Service(diskmapchecksum (1 of 2) this) // {{{
+( this[2]>>dm>>i;
+  dm[1]<<^pop;
+  dm[1]>>
+  {^nil:
+    this[2]<<0;
+   ^cons:
+    dm[1]>>head>>tail;
+    dmc=new diskmapchecksum(2 of 2);
+    dmc[1]<<tail<<i+1;
+    dmc[1]>>r;
+    this[2]<<r+i*head;
+  }
 ) // }}}
 |
 // Process data and print result
@@ -52,13 +174,14 @@ local Process($list(String)(2 of 1 pure,2) lines) // {{{
     lines[1]>>line>>ltail;
     ltail[1]<<^end;
     pdm=new parsediskmap(2 of 2);
-    pdm[1]<<line;
-    pdm[1]>>disk;
+    pdm[1]<<0<<line;
     cdm=new compressdiskmap(2 of 2);
-    cdm[1]<<disk;
-    cdm[1]>>cdisk;
+    cdm[1]<<pdm;
+    //pl=new printlist(2 of 2);
+    //pl<<Int;
+    //pl[1]<<int2string<<cdm;
     dmc=new diskmapchecksum(2 of 2);
-    dmc[1]<<cdisk;
+    dmc[1]<<cdm<<0;
     dmc[1]>>checksum;
     c=new console(2 of 2);
     c[1]<<^str<<"Checksum: "<<^int<<checksum<<^nl<<^end;
@@ -80,7 +203,7 @@ local ProcessFile($infile(2 of 1,2) fin) // {{{
       rlines=new revlist(2 of 2);
       rlines<<String;
       rlines[1]<<lines;
-      Process(rlines,0);
+      Process(rlines);
     }
   ) // }}}
   lines=new list(2 of 2);
