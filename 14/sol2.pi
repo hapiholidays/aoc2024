@@ -1,0 +1,214 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define ispure pure
+#define $simrobots \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:Int; /*maxx*/\
+  2->1:Int; /*maxy*/\
+  2->1:Int; /*steps*/\
+  $list(Int)
+global $simrobots simrobots(1 ispure,2);
+local ispure service Service(simrobots (1 of 2) this) // {{{
+( this[2]>>robots>>maxx>>maxy>>steps;
+  robots[1]<<^pop;
+  robots[1]>>
+  {^nil:
+    res=new list(2 of 2);
+    res<<Int;
+    res[1]<<^takeover<<this;
+   ^cons:
+    robots[1]>>robot>>rtail;
+    srtail=new simrobots(2 of 2);
+    srtail[1]<<rtail<<maxx<<maxy<<steps;
+    // Simulate robot
+    Int px=robot-(robot/1000)*1000;
+    Int py=(robot/1000)-(robot/1000000)*1000;
+    Int vx=((robot/1000000)-(robot/1000000000)*1000)-200;
+    Int vy=(robot/1000000000)-200;
+    Int dxnb=px+vx*steps;
+    Int dx=dxnb-(dxnb/maxx)*maxx;
+    Int ddx=if 0<=dx then dx else maxx+dx;
+    Int dynb=py+vy*steps;
+    Int dy=dynb-(dynb/maxy)*maxy;
+    Int ddy=if 0<=dy then dy else maxy+dy;
+    // Add res to result
+    srtail[1]<<^cons<<ddx+ddy*1000;
+    srtail[1]<<^takeover<<this;
+  }
+) // }}}
+|
+#define $rendertiles \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:Int; /*maxx*/\
+  2->1:Int; /*maxy*/\
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+global $rendertiles rendertiles(1 ispure,2);
+local ispure service Service(rendertiles (1 of 2) this) // {{{
+( this[2]>>robots>>maxx>>maxy;
+  robots[1]<<^pop;
+  robots[1]>>
+  {^nil:
+    res=new set(2 of 2);
+    res<<Int;
+    res[1]<<stdorder_Int;
+    this[2]<<res;
+   ^cons:
+    robots[1]>>robot>>rtail;
+    rt=new rendertiles(2 of 2);
+    rt[1]<<rtail<<maxx<<maxy;
+    rt[1]>>res;
+    Int py=robot/1000;
+    Int px=robot-py*1000;
+    res[1]<<^insert<<px+1000*py;
+    this[2]<<res;
+  }
+) // }}}
+|
+#define $printtiles \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  2->1:Int; /*maxx*/\
+  2->1:Int; /*maxy*/\
+  1->2:Bool; /*done*/\
+  $end;
+global $printtiles printtiles(1,2);
+local service Service(printtiles (1 of 2) this) // {{{
+( this[2]>>tiles>>maxx>>maxy;
+  local PrintTile(1->2:Bool;$end;(1 of 1,2) this, $console(2 of 1,2) c, $set(Int)(2 of 1 pure,2) tiles, Int x, Int y) // {{{
+  ( if maxy<=y
+    then c[1]<<^end;
+         tiles[1]<<^end;
+         this[2]<<true;
+    else if maxx<=x
+    then c[1]<<^nl;
+         PrintTile(this,c,tiles,0,y+1);
+    else tiles[1]<<^member<<x+y*1000;
+         tiles[1]>>t;
+         c[1]<<^str<<if t then "#" else " ";
+         PrintTile(this,c,tiles,x+1,y);
+  ) // }}}
+  c=new console(2 of 2);
+  PrintTile(this,c,tiles,0,0);
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( local ParseRobots($list(String)(2 of 1 pure,2) lines, $list(Int)(2 of 1 pure,2) robots, Int maxx, Int maxy) // {{{
+  ( lines[1]<<^pop;
+    lines[1]>>
+    {^nil:
+      local PrintSims($list(Int)(2 of 1 pure,2) robots, Int sim)
+      ( if 11000<=sim
+        then robots[1]<<^end;
+        else robots[1]<<^copy;
+             robots[1]>>robots2;
+             sr=new simrobots(2 of 2);
+             sr[1]<<robots<<maxx+1<<maxy+1<<sim;
+             rt=new rendertiles(2 of 2);
+             rt[1]<<sr<<maxx+1<<maxy+1;
+             rt[1]>>tiles;
+             c=new console(2 of 2);
+             c[1]<<^str<<"Sim: "<<^int<<sim<<^nl<<^end;
+             pt=new printtiles(2 of 2);
+             pt[1]<<tiles<<maxx+1<<maxy+1;
+             pt[1]>>done;
+             PrintSims(robots2,sim+1);
+      )
+      PrintSims(robots,0);
+     ^cons:
+      lines[1]>>line>>ltail;
+      // Find px
+      String line1=line%2;
+      sf1=new strfind(2 of 2);
+      sf1[1]<<line1<<",";
+      sf1[1]>>pos1;
+      String pxstr=line1/pos1;
+      Int px=0;
+      STRING2INT(pxstr,px);
+      // Find py
+      String line2=line1%(pos1+1);
+      sf2=new strfind(2 of 2);
+      sf2[1]<<line2<<" ";
+      sf2[1]>>pos2;
+      String pystr=line2/pos2;
+      Int py=0;
+      STRING2INT(pystr,py);
+      // Find vx
+      String line3=line2%(pos2+3);
+      sf3=new strfind(2 of 2);
+      sf3[1]<<line3<<",";
+      sf3[1]>>pos3;
+      String vxstr=line3/pos3;
+      Int vx=0;
+      STRING2INT(vxstr,vx);
+      // Find vy
+      String vystr=line3%(pos3+1);
+      Int vy=0;
+      STRING2INT(vystr,vy);
+      Int robot=px+py*1000+(200+vx)*1000000+(200+vy)*1000000000;
+      robots[1]<<^cons<<robot;
+      Int mx=if maxx<=px then px else maxx;
+      Int my=if maxy<=py then py else maxy;
+      ParseRobots(ltail,robots,mx,my);
+    }
+  ) // }}}
+  r=new list(2 of 2);
+  r<<Int;
+  ParseRobots(lines,r,0,0);
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      // Ignore empty lines
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
