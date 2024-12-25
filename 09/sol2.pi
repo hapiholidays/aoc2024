@@ -6,231 +6,276 @@
 #include <convert.pi>
 #include "listutils.pi"
 #include "strutils.pi"
+#include "map.pi"
 
-#define ispure pure
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define $nlist \
-  2->1:Int; \
-  2->1:Int; \
-  $list(Int)
-global $nlist nlist(1 pure,2);
-local pure service Service(nlist (1 of 2) this) // {{{
-( this[2]>>x>>n;
-  if n<=0
-  then res=new list(2 of 2);
-       res<<Int;
-       res[1]<<^takeover<<this;
-  else res=new nlist(2 of 2);
-       res[1]<<x<<n-1<<^cons<<x;
-       res[1]<<^takeover<<this;
+#define $printdiskmap \
+  2->1:$map(Int,Int)(2 of 1 pure,2); /* updated diskmap */\
+  $end;
+global $printdiskmap printdiskmap(1,2);
+local service Service(printdiskmap (1 of 2) this) // {{{
+( this[2]>>dm;
+  local Print($console(2 of 1,2) c, $map(Int,Int)(2 of 1 pure,2) dm, Int pos) // {{{
+  ( dm[1]<<^lookup<<pos;
+    dm[1]>>
+    {^nil:
+      c[1]<<^nl<<^end;
+      dm[1]<<^end;
+     ^val:
+      dm[1]>>v;
+      c[1]<<^int<<v<<^str<<",";
+      Print(c,dm,pos+1);
+    }
+  ) // }}}
+  c=new console(2 of 2);
+  Print(c,dm,0);
+) // }}}
+|
+#define $setrangeres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); /* updated diskmap */\
+  $end;
+#define $setrange \
+  2->1:$map(Int,Int)(2 of 1 pure,2); /* diskmap */\
+  2->1:Int; /*from*/\
+  2->1:Int; /*to*/\
+  2->1:Int; /*val*/\
+  $setrangeres
+global $setrange setrange(1 pure,2);
+local pure service Service(setrange (1 of 2) this) // {{{
+( this[2]>>dm>>from>>to>>val;
+  local pure SetRange($setrangeres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) dm, Int pos) // {{{
+  ( if to<=pos
+    then this[2]<<dm;
+    else dm[1]<<^set<<pos<<val;
+         SetRange(this,dm,pos+1);
+  ) // }}}
+  SetRange(this,dm,from);
 ) // }}}
 |
 #define $parsediskmap \
-  2->1:Int; \
+  2->1:Int; /*fid*/\
+  2->1:Int; /*pos*/\
   2->1:String; \
-  $list(Int)
-global $parsediskmap parsediskmap(1 ispure,2);
-local ispure service Service(parsediskmap (1 of 2) this) // {{{
-( this[2]>>fid>>data;
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  1->2:Int; /*len*/ \
+  $end;
+global $parsediskmap parsediskmap(1 pure,2);
+local pure service Service(parsediskmap (1 of 2) this) // {{{
+( this[2]>>fid>>pos>>data;
   if data&^length<=0
-  then res=new list(2 of 2);
+  then res=new map(2 of 2);
        res<<Int;
-       res[1]<<^takeover<<this;
+       res<<Int;
+       res[1]<<stdorder_Int;
+       this[2]<<res;
+       this[2]<<pos;
   else if data&^length<=1
-  then Int size=0;
+  then res=new map(2 of 2);
+       res<<Int;
+       res<<Int;
+       res[1]<<stdorder_Int;
+       Int size=0;
        STRING2INT(data,size) pure;
-       res=new nlist(2 of 2);
-       res[1]<<fid<<size<<^takeover<<this;
+       sr=new setrange(2 of 2);
+       sr[1]<<res<<pos<<pos+size<<fid;
+       sr[1]>>res;
+       this[2]<<res;
+       this[2]<<pos+size;
   else String sizestr=data/1;
        String data2=data%1;
        String freestr=data2/1;
        String data3=data2%1;
-       res3=new parsediskmap(2 of 2);
-       res3[1]<<fid+1<<data3;
        Int size=0;
        STRING2INT(sizestr,size) pure;
        Int free=0;
        STRING2INT(freestr,free) pure;
-       res2=new nlist(2 of 2);
-       res2[1]<<0-1<<free;
-       res=new nlist(2 of 2);
-       res[1]<<fid<<size;
-       res[1]<<^append<<res2;
-       res[1]<<^append<<res3;
-       res[1]<<^takeover<<this;
+       pdm=new parsediskmap(2 of 2);
+       pdm[1]<<fid+1<<pos+size+free<<data3;
+       pdm[1]>>res>>maxpos;
+       sr1=new setrange(2 of 2);
+       sr1[1]<<res<<pos<<pos+size<<fid;
+       sr1[1]>>res;
+       sr2=new setrange(2 of 2);
+       sr2[1]<<res<<pos+size<<pos+size+free<<0-1;
+       sr2[1]>>res;
+       this[2]<<res;
+       this[2]<<maxpos;
 ) // }}}
 |
-#define $popfile \
-  2->1:$list(Int)(2 of 1 pure,2); /* diskmap */\
+#define $findfileres \
   1->2:Int;                       /* file id */\
+  1->2:Int;                       /* file position */\
   1->2:Int;                       /* file length */\
-  1->2:$list(Int)(2 of 1 pure,2); /* diskmap after file */\
-  $list(Int)                      /* diskmap before file */
-global $popfile popfile(1 ispure,2);
-local ispure service Service(popfile (1 of 2) this) // {{{
-( this[2]>>data;
-  data[1]<<^pop;
-  data[1]>>
-  {^nil:
-    this[2]<<0-1<<0-1;
-    res1=new list(2 of 2);
-    res1<<Int;
-    this[2]<<res1;
-    res2=new list(2 of 2);
-    res2<<Int;
-    res2[1]<<^takeover<<this;
-   ^cons:
-    data[1]>>head>>tail;
-    restail=new popfile(2 of 2);
-    restail[1]<<tail;
-    restail[1]>>v>>l>>rest;
-    if v=0-1
-    then if head=0-1
-         then rest[1]<<^cons<<head;
-              this[2]<<0-1<<0-1<<rest;
-              restail[1]<<^takeover<<this;
-         else this[2]<<head<<1<<rest;
-              restail[1]<<^takeover<<this;
-    else if head=v
-         then this[2]<<v<<l+1<<rest;
-              restail[1]<<^takeover<<this;
-         else this[2]<<v<<l<<rest;
-              restail[1]<<^cons<<head<<^takeover<<this;
-  }
-) // }}}
-|
-#define $testfreeres \
-  1->2:$list(Int)(2 of 1 pure,2); /* diskmap */\
-  1->2:Bool; /* room here */\
+  1->2:$map(Int,Int)(2 of 1 pure,2); /* return diskmap */\
   $end;
-#define $testfree \
-  2->1:$list(Int)(2 of 1 pure,2); /* diskmap */\
-  2->1:Int; /* file id */\
-  $testfreeres
-global $testfree testfree(1 ispure,2);
-local ispure service Service(insfile (1 of 2) this) // {{{
-( this[2]>>data>>size;
-  local Test($testfreeres(1 of 1 ispure,2) this, $list(Int)(2 of 1 pure,2) data, Int pos) // {{{
-  ( if size<=pos
-    then this[2]<<data<<True;
-    else data[1]<<^get<<pos;
-         data[1]>>
-         {^err:
-           data[1]>>err;
-           this[2]<<data<<False;
-          ^val:
-           data[1]>>val;
-           if 0<=val
-           then this[2]<<data<<False;
-           else Test(this,data,pos+1);
-         }
+#define $findfile \
+  2->1:$map(Int,Int)(2 of 1 pure,2); /* diskmap */\
+  2->1:Int;                       /* pos */\
+  $findfileres
+global $findfile findfile(1 pure,2);
+local pure service Service(findfile (1 of 2) this) // {{{
+( this[2]>>dm>>pos;
+  local pure FindFile($findfileres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) dm, Int end) // {{{
+  ( dm[1]<<^lookup<<end;
+    dm[1]>>
+    {^nil:
+      this[2]<<0-1<<0-1<<0-1<<dm;
+     ^val:
+      dm[1]>>v;
+      if 0<=v // not free
+      then local pure FindFileStart($findfileres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) dm, Int start) // {{{
+           ( dm[1]<<^lookup<<start;
+             dm[1]>>
+             {^nil:
+               this[2]<<v<<start+1<<end-start<<dm;
+              ^val:
+               dm[1]>>v2;
+               if v2=v
+               then FindFileStart(this,dm,start-1);
+               else this[2]<<v<<start+1<<end-start<<dm;
+             }
+           ) // }}}
+           FindFileStart(this,dm,end-1);
+      else FindFile(this,dm,end-1);
+    }
   ) // }}}
-  Test(this,data,0);
+  FindFile(this,dm,pos-1);
 ) // }}}
 |
-#define $insfileres \
-  1->2 \
-  {^err: \
-    $list(Int)(2 of 1 pure,2); /* diskmap */\
-   ^ok: \
-    $list(Int)(2 of 1 pure,2); /* updated diskmap */\
-  }
-#define $insfile \
-  2->1:$list(Int)(2 of 1 pure,2); /* diskmap */\
+#define $findfreeres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); /* diskmap */\
+  1->2:Int; /* pos */\
+  $end;
+#define $findfree \
+  2->1:$map(Int,Int)(2 of 1 pure,2); /* diskmap */\
+  2->1:Int; /* size */\
+  2->1:Int; /* min */\
+  2->1:Int; /* max */\
+  $findfreeres
+global $findfree findfree(1 pure,2);
+local pure service Service(findfree (1 of 2) this) // {{{
+( this[2]>>data>>size>>min>>max;
+  local pure FindFree($findfreeres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) data, Int pos) // {{{
+  ( local pure TestFree($findfreeres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) data, Int idx) // {{{
+    ( if size<=idx
+      then this[2]<<data<<pos;
+      else if max<=pos+idx
+      then this[2]<<data<<0-1;
+      else data[1]<<^lookup<<pos+idx;
+           data[1]>>
+           {^nil:
+             this[2]<<data<<0-1;
+            ^val:
+             data[1]>>val;
+             if 0<=val
+             then FindFree(this,data,pos+idx+1);
+             else TestFree(this,data,idx+1);
+           }
+    ) // }}}
+    TestFree(this,data,0);
+  ) // }}}
+  FindFree(this,data,min);
+) // }}}
+|
+#define $movefileres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); /* diskmap */\
+  $end;
+#define $movefile \
+  2->1:$map(Int,Int)(2 of 1 pure,2); /* diskmap */\
   2->1:Int; /* file id */\
+  2->1:Int; /* file pos */\
   2->1:Int; /* file length */\
-  $insfileres
-global $insfile insfile(1 ispure,2);
-local ispure service Service(insfile (1 of 2) this) // {{{
-( this[2]>>data>>id>>len;
-  tf=new testfree(2 of 2);
-  tf[1]<<data<<len;
-  tf[1]>>data>>free;
-  if free
-  then sl=new splitlist(2 of 2);
-       sl<<Int;
-       sl[1]<<data<<len;
-       sl[1]>>junk;
-       junk[1]<<^end;
-       file=new nlist(2 of 2);
-       file[1]<<id<<len;
-       file[1]<<^append<<sl;
-       this[2]<<^ok;
-       file[1]<<^takeover<<this;
-  else data[1]<<^pop;
-       data[1]>>
-       {^nil:
-         this[2]<<^err;
-         res=new list(2 of 2);
-         res<<Int;
-         res[1]<<^takeover<<this;
-        ^cons:
-         data[1]>>head>>tail;
-         inf=new insfile(2 of 2);
-         inf[1]<<tail<<id<<len;
-         inf[1]>>
-         {^err:
-           inf[1]<<^cons<<head;
-           this[2]<<^err;
-           inf[1]<<^takeover<<this;
-          ^ok:
-           inf[1]<<^cons<<head;
-           this[2]<<^ok;
-           inf[1]<<^takeover<<this;
-         }
-       }
+  2->1:Int; /* dest */\
+  $movefileres
+global $movefile movefile(1 pure,2);
+local pure service Service(movefile (1 of 2) this) // {{{
+( this[2]>>data>>id>>pos>>len>>dst;
+  local pure Move($movefileres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) data, Int idx) // {{{
+  ( if len<=idx
+    then this[2]<<data;
+    else data[1]<<^set<<dst+idx<<id;
+         data[1]<<^set<<pos+idx<<0-1;
+         Move(this,data,idx+1);
+  ) // }}}
+  Move(this,data,0);
 ) // }}}
 |
 #define $compressdiskmap \
-  2->1:$list(Int)(2 of 1 pure,2); \
-  $list(Int)
-global $compressdiskmap compressdiskmap(1 ispure,2);
-local ispure service Service(compressdiskmap (1 of 2) this) // {{{
-( this[2]>>dm;
-  pf=new popfile(2 of 2);
-  pf[1]<<dm;
-  pf[1]>>fid>>len>>rest;
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:Int; /*pos*/ \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  $end;
+global $compressdiskmap compressdiskmap(1 pure,2);
+local pure service Service(compressdiskmap (1 of 2) this) // {{{
+( this[2]>>dm>>fmap>>pos;
+  ff=new findfile(2 of 2);
+  ff[1]<<dm<<pos;
+  ff[1]>>fid>>fpos>>flen>>dm;
   if 0<=fid
-  then inf=new insfile(2 of 2);
-       inf[1]<<pf<<fid<<len;
-       inf[1]>>
-       {^err:
-         file=new nlist(2 of 2);
-         file[1]<<fid<<len;
-         file[1]<<^append<<rest;
-         cd=new compressdiskmap(2 of 2);
-         cd[1]<<inf;
-         cd[1]<<^append<<file;
-         cd[1]<<^takeover<<this;
-        ^ok:
-         cd=new compressdiskmap(2 of 2);
-         cd[1]<<inf;
-         cd[1]<<^append<<rest;
-         cd[1]<<^takeover<<this;
+  then fmap[1]<<^lookup<<flen;
+       fmap[1]>>
+       {^nil:
+         ffree=new findfree(2 of 2);
+         ffree[1]<<dm<<flen<<0<<fpos;
+         ffree[1]>>dm>>freepos;
+         fmap[1]<<^set<<flen<<if 0<=freepos then freepos else fpos;
+         if (0<=freepos) and (freepos<=fpos)
+         then mf=new movefile(2 of 2);
+              mf[1]<<dm<<fid<<fpos<<flen<<freepos;
+              mf[1]>>dm;
+              cd=new compressdiskmap(2 of 2);
+              cd[1]<<dm<<fmap<<fpos;
+              cd[1]>>dm;
+              this[2]<<dm;
+         else cd=new compressdiskmap(2 of 2);
+              cd[1]<<dm<<fmap<<fpos;
+              cd[1]>>dm;
+              this[2]<<dm;
+        ^val:
+         fmap[1]>>fstart;
+         ffree=new findfree(2 of 2);
+         ffree[1]<<dm<<flen<<fstart<<fpos;
+         ffree[1]>>dm>>freepos;
+         fmap[1]<<^set<<flen<<if 0<=freepos then freepos else fpos;
+         if (0<=freepos) and (freepos<=fpos)
+         then mf=new movefile(2 of 2);
+              mf[1]<<dm<<fid<<fpos<<flen<<freepos;
+              mf[1]>>dm;
+              cd=new compressdiskmap(2 of 2);
+              cd[1]<<dm<<fmap<<fpos;
+              cd[1]>>dm;
+              this[2]<<dm;
+         else cd=new compressdiskmap(2 of 2);
+              cd[1]<<dm<<fmap<<fpos;
+              cd[1]>>dm;
+              this[2]<<dm;
        }
-  else pf[1]<<^end;
-       rest[1]<<^takeover<<thid;
+  else this[2]<<dm;
+       fmap[1]<<^end;
 ) // }}}
 |
 #define $diskmapchecksum \
-  2->1:$list(Int)(2 of 1 pure,2); \
-  2->1:Int; \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:Int; /*pos*/\
   1->2:Int; \
   $end;
-global $diskmapchecksum diskmapchecksum(1 ispure,2);
-local ispure service Service(diskmapchecksum (1 of 2) this) // {{{
+global $diskmapchecksum diskmapchecksum(1 pure,2);
+local pure service Service(diskmapchecksum (1 of 2) this) // {{{
 ( this[2]>>dm>>i;
-  dm[1]<<^pop;
+  dm[1]<<^lookup<<i;
   dm[1]>>
   {^nil:
+    dm[1]<<^end;
     this[2]<<0;
-   ^cons:
-    dm[1]>>head>>tail;
+   ^val:
+    dm[1]>>head;
     dmc=new diskmapchecksum(2 of 2);
-    dmc[1]<<tail<<i+1;
+    dmc[1]<<dm<<i+1;
     dmc[1]>>r;
-    this[2]<<r+i*head;
+    Int factor=if head<=0 then 0 else head;
+    this[2]<<r+i*factor;
   }
 ) // }}}
 |
@@ -244,17 +289,38 @@ local Process($list(String)(2 of 1 pure,2) lines) // {{{
     lines[1]>>line>>ltail;
     ltail[1]<<^end;
     pdm=new parsediskmap(2 of 2);
-    pdm[1]<<0<<line;
+    pdm[1]<<0<<0<<line;
+    pdm[1]>>dm>>len;
+    fmap=new map(2 of 2);
+    fmap<<Int;
+    fmap<<Int;
+    fmap[1]<<stdorder_Int;
     cdm=new compressdiskmap(2 of 2);
-    cdm[1]<<pdm;
-    pl=new printlist(2 of 2);
-    pl<<Int;
-    pl[1]<<int2string<<cdm;
-    //dmc=new diskmapchecksum(2 of 2);
-    //dmc[1]<<cdm<<0;
-    //dmc[1]>>checksum;
+    cdm[1]<<dm<<fmap<<len;
+    cdm[1]>>dm;
+    dm[1]<<^copy;
+    dm[1]>>dmcpy;
+    print=new printdiskmap(2 of 2);
+    print[1]<<dmcpy;
+    //pl=new printlist(2 of 2);
+    //pl<<Int;
+    //pl[1]<<int2string<<cdm;
+    //pf=new popfile(2 of 2);
+    //pf[1]<<pdm;
+    //pf[1]>>fid>>len>>rest;
+    //pl=new printlist(2 of 2);
+    //pl<<Int;
+    //pl[1]<<int2string<<pf;
     //c=new console(2 of 2);
-    //c[1]<<^str<<"Checksum: "<<^int<<checksum<<^nl<<^end;
+    //c[1]<<^str<<"File id: "<<^int<<fid<<^str<<" length: "<<^int<<len<<^nl<<^end;
+    //pl=new printlist(2 of 2);
+    //pl<<Int;
+    //pl[1]<<int2string<<rest;
+    dmc=new diskmapchecksum(2 of 2);
+    dmc[1]<<dm<<0;
+    dmc[1]>>checksum;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Checksum: "<<^int<<checksum<<^nl<<^end;
   }
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
