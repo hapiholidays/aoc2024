@@ -9,7 +9,7 @@
 
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define ispure
+#define ispure pure
 #define $stepupsres \
   1->2:$set(Int)(2 of 1 pure,2); \
   1->2:$list(String)(2 of 1 pure,2); \
@@ -115,33 +115,11 @@ local ispure service Service(score (1 of 2) this) // {{{
          nextstate[1]<<^end;
          this[2]<<res<<map;
     else su=new stepups(2 of 2);
-         //Debug
-         state[1]<<^copy;
-         state[1]>>dbg_state;
-
          su[1]<<state<<nextstate<<map;
          su[1]>>nextstate>>map;
          nnstate=new set(2 of 2);
          nnstate<<Int;
          nnstate[1]<<stdorder_Int;
-         //Debug
-         debug("Input: ");
-         dbg_statelist=new set2list(2 of 2);
-         dbg_statelist<<Int;
-         dbg_statelist[1]<<dbg_state;
-         pl=new printlist(2 of 2);
-         pl<<Int;
-         pl[1]<<int2string<<dbg_statelist;
-         debug("Output: ");
-         nextstate[1]<<^copy;
-         nextstate[1]>>dbg_nextstate;
-         dbg_nextstatelist=new set2list(2 of 2);
-         dbg_nextstatelist<<Int;
-         dbg_nextstatelist[1]<<dbg_nextstate;
-         pl=new printlist(2 of 2);
-         pl<<Int;
-         pl[1]<<int2string<<dbg_nextstatelist;
-
          State(this,map,nextstate,nnstate,altitude+1);
   ) // }}}
   this[2]>>x>>y>>map;

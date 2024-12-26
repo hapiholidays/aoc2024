@@ -1,0 +1,343 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+#include "map.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $readmapres \
+  1->2:$list(String)(2 of 1 pure,2); /*rest*/\
+  1->2:Int; /*robotx*/\
+  1->2:Int; /*roboty*/\
+  1->2:Int; /*maxx*/\
+  1->2:Int; /*maxy*/\
+  1->2:$map(Int,Int)(2 of 1 pure,2); /* chart */\
+  $end;
+#define $readmap \
+  2->1:$list(String)(2 of 1 pure,2); \
+  2->1:Int; /*y*/\
+  $readmapres
+global $readmap readchart(1 pure,2);
+local pure service Service(readchart (1 of 2) this) // {{{
+( this[2]>>lines>>y;
+  lines[1]<<^pop;
+  lines[1]>>
+  {^nil:
+    rest=new list(2 of 2);
+    rest<<String;
+    chart=new map(2 of 2);
+    chart<<Int;
+    chart<<Int;
+    chart[1]<<stdorder_Int;
+    this[2]<<rest<<0-1<<0-1<<0-1<<y<<chart;
+   ^cons:
+    lines[1]>>line>>rest;
+    if line&^length<=0
+    then chart=new map(2 of 2);
+         chart<<Int;
+         chart<<Int;
+         chart[1]<<stdorder_Int;
+         this[2]<<rest<<0-1<<0-1<<0-1<<y<<chart;
+    else rc=new readchart(2 of 2);
+         rc[1]<<rest<<y+1;
+         rc[1]>>rest>>rx>>ry>>mx>>my>>chart;
+         local pure ReadLine($readmapres(1 of 1 pure,2) this, $list(String)(2 of 1 pure,2) rest, $map(Int,Int)(2 of 1 pure,2) chart, Int robotx, Int roboty, Int pos) // {{{
+         ( if line&^length<=pos
+           then this[2]<<rest<<robotx<<roboty<<2*pos<<my<<chart;
+           else if line&pos="#"&0
+           then chart[1]<<^set<<2*pos+y*1000<<1; // Wall
+                chart[1]<<^set<<2*pos+1+y*1000<<1; // Wall
+                ReadLine(this,rest,chart,robotx,roboty,pos+1);
+           else if line&pos="O"&0
+           then chart[1]<<^set<<2*pos+y*1000<<2; // Box
+                chart[1]<<^set<<2*pos+1+y*1000<<3; // Box
+                ReadLine(this,rest,chart,robotx,roboty,pos+1);
+           else if line&pos="@"&0
+           then chart[1]<<^set<<2*pos+y*1000<<0; // Empty tile
+                chart[1]<<^set<<2*pos+1+y*1000<<0; // Empty tile
+                ReadLine(this,rest,chart,2*pos,y,pos+1); // Robot
+           else chart[1]<<^set<<2*pos+y*1000<<0; // Empty tile
+                chart[1]<<^set<<2*pos+1+y*1000<<0; // Empty tile
+                ReadLine(this,rest,chart,robotx,roboty,pos+1);
+         ) // }}}
+         ReadLine(this,rest,chart,rx,ry,0);
+  }
+) // }}}
+|
+#define $printchart \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:Int; /*robotx*/\
+  2->1:Int; /*roboty*/\
+  $end;
+global $printchart printchart(1,2);
+local service Service(printchart (1 of 2) this) // {{{
+( this[2]>>chart>>rx>>ry;
+  local PrintChart($console(2 of 1,2) c, $map(Int,Int)(2 of 1 pure,2) chart, Int x, Int y) // {{{
+  ( if (x=rx) and (y=ry)
+    then c[1]<<^str<<"@";
+         PrintChart(c,chart,x+1,y);
+    else chart[1]<<^lookup<<x+y*1000;
+         chart[1]>>
+         {^nil:
+           if x=0
+           then c[1]<<^end;
+                chart[1]<<^end;
+           else c[1]<<^nl;
+                PrintChart(c,chart,0,y+1);
+          ^val:
+           chart[1]>>v;
+           c[1]<<^int<<v;
+           PrintChart(c,chart,x+1,y);
+         }
+  ) // }}}
+  c=new console(2 of 2);
+  PrintChart(c,chart,0,0);
+) // }}}
+|
+#define $testtileres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  1->2:Bool; /*success*/\
+  $end;
+#define $testtile \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:Int; /*tox*/\
+  2->1:Int; /*toy*/\
+  2->1:Int; /*dirx*/\
+  2->1:Int; /*diry*/\
+  $testtileres
+global $testtile testtile(1 pure,2);
+local pure service Service(testtile (1 of 2) this) // {{{
+( this[2]>>chart>>tox>>toy>>dirx>>diry;
+  chart[1]<<^lookup<<tox+toy*1000;
+  chart[1]>>
+  {^nil:
+    this[2]<<chart<<false;
+   ^val:
+    chart[1]>>tile;
+    if tile=0 // Empty
+    then this[2]<<chart<<true;
+    else if tile=2 // Box left
+    then if diry=0
+         then mt=new testtile(2 of 2);
+              mt[1]<<chart<<tox+2*dirx<<toy<<dirx<<diry;
+              mt[1]>>chart>>res;
+              this[2]<<chart<<res;
+         else mt1=new testtile(2 of 2);
+              mt1[1]<<chart<<tox<<toy+diry<<dirx<<diry;
+              mt1[1]>>chart>>res1;
+              if res1
+              then mt2=new testtile(2 of 2);
+                   mt2[1]<<chart<<tox+1<<toy+diry<<dirx<<diry;
+                   mt2[1]>>chart>>res2;
+                   this[2]<<chart<<res2;
+              else this[2]<<chart<<false;
+    else if tile=3 // Box right
+    then if diry=0
+         then mt=new testtile(2 of 2);
+              mt[1]<<chart<<tox+2*dirx<<toy<<dirx<<diry;
+              mt[1]>>chart>>res;
+              this[2]<<chart<<res;
+         else mt1=new testtile(2 of 2);
+              mt1[1]<<chart<<tox<<toy+diry<<dirx<<diry;
+              mt1[1]>>chart>>res1;
+              if res1
+              then mt2=new testtile(2 of 2);
+                   mt2[1]<<chart<<tox-1<<toy+diry<<dirx<<diry;
+                   mt2[1]>>chart>>res2;
+                   this[2]<<chart<<res2;
+              else this[2]<<chart<<false;
+    else //if tile=1 // Wall
+         this[2]<<chart<<false;
+  }
+) // }}}
+|
+#define $movetileres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  $end;
+#define $movetile \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:Int; /*tox*/\
+  2->1:Int; /*toy*/\
+  2->1:Int; /*dirx*/\
+  2->1:Int; /*diry*/\
+  2->1:Int; /*obj*/\
+  $movetileres
+global $movetile movetile(1 pure,2);
+local pure service Service(movetile (1 of 2) this) // {{{
+( this[2]>>chart>>tox>>toy>>dirx>>diry>>obj;
+  chart[1]<<^lookup<<tox+toy*1000;
+  chart[1]>>
+  {^nil:
+    chart[1]<<^set<<tox+toy*1000<<obj;
+    this[2]<<chart;
+   ^val:
+    chart[1]>>tile;
+    if tile=0 // Empty
+    then chart[1]<<^set<<tox+toy*1000<<obj;
+         this[2]<<chart;
+    else if tile=2 // Box left 
+    then if diry=0 // (move right)
+         then mt=new movetile(2 of 2);
+              mt[1]<<chart<<tox+2<<toy<<dirx<<diry<<3;
+              mt[1]>>chart;
+              chart[1]<<^set<<tox+1+toy*1000<<2;
+              chart[1]<<^set<<tox+toy*1000<<obj;
+              this[2]<<chart;
+         else // Up or down
+              mt1=new movetile(2 of 2);
+              mt1[1]<<chart<<tox<<toy+diry<<dirx<<diry<<2;
+              mt1[1]>>chart;
+              mt1=new movetile(2 of 2);
+              mt1[1]<<chart<<tox+1<<toy+diry<<dirx<<diry<<3;
+              mt1[1]>>chart;
+              chart[1]<<^set<<tox+toy*1000<<obj;
+              chart[1]<<^set<<tox+1+toy*1000<<0;
+              this[2]<<chart;
+    else if tile=3 // Box right
+    then if diry=0 // (move left)
+         then mt=new movetile(2 of 2);
+              mt[1]<<chart<<tox-2<<toy<<dirx<<diry<<2;
+              mt[1]>>chart;
+              chart[1]<<^set<<tox-1+toy*1000<<3;
+              chart[1]<<^set<<tox+toy*1000<<obj;
+              this[2]<<chart;
+         else // Up or down
+              mt1=new movetile(2 of 2);
+              mt1[1]<<chart<<tox<<toy+diry<<dirx<<diry<<3;
+              mt1[1]>>chart;
+              mt1=new movetile(2 of 2);
+              mt1[1]<<chart<<tox-1<<toy+diry<<dirx<<diry<<2;
+              mt1[1]>>chart;
+              chart[1]<<^set<<tox+toy*1000<<obj;
+              chart[1]<<^set<<tox-1+toy*1000<<0;
+              this[2]<<chart;
+    else //if tile=1 // Wall
+         this[2]<<chart;
+  }
+) // }}}
+|
+#define $chartscoreres \
+  1->2:Int; \
+  $end;
+#define $chartscore \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  $chartscoreres
+global $chartscore chartscore(1 pure,2);
+local pure service Service(chartscore (1 of 2) this) // {{{
+( local pure Score($chartscoreres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) chart, Int score, Int x, Int y) // {{{
+  ( chart[1]<<^lookup<<x+y*1000;
+    chart[1]>>
+    {^nil:
+      if x<=0
+      then this[2]<<score;
+           chart[1]<<^end;
+      else Score(this,chart,score,0,y+1);
+     ^val:
+      chart[1]>>tile;
+      if tile=2
+      then Score(this,chart,score+x+y*100,x+1,y);
+      else Score(this,chart,score,x+1,y);
+    }
+  ) // }}}
+  this[2]>>chart;
+  Score(this,chart,0,0,0);
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( local MoveRobot($map(Int,Int)(2 of 1 pure,2) chart, $list(String)(2 of 1 pure,2) lines, Int robotx, Int roboty, String line, Int pos) // {{{
+  ( if line&^length<=pos
+    then lines[1]<<^pop;
+         lines[1]>>
+         {^nil:
+           //chart[1]<<^copy;
+           //chart[1]>>cpy;
+           //pc=new printchart(2 of 2);
+           //pc[1]<<cpy<<robotx<<roboty;
+           cs=new chartscore(2 of 2);
+           cs[1]<<chart;
+           cs[1]>>score;
+           c=new console(2 of 2);
+           c[1]<<^str<<"Score: "<<^int<<score<<^nl<<^end;
+          ^cons:
+           lines[1]>>head>>tail;
+           MoveRobot(chart,tail,robotx,roboty,head,0);
+         }
+    else Int dirx=if line&pos="<"&0 then 0-1 else if line&pos=">"&0 then 1 else 0;
+         Int diry=if line&pos="^"&0 then 0-1 else if line&pos="v"&0 then 1 else 0;
+         //chart[1]<<^copy;
+         //chart[1]>>cpy;
+         //pc=new printchart(2 of 2);
+         //pc[1]<<cpy<<robotx<<roboty;
+         tt=new testtile(2 of 2);
+         tt[1]<<chart<<robotx+dirx<<roboty+diry<<dirx<<diry;
+         tt[1]>>chart>>res;
+         if res
+         then mt=new movetile(2 of 2);
+              mt[1]<<chart<<robotx+dirx<<roboty+diry<<dirx<<diry<<0;
+              mt[1]>>chart;
+              MoveRobot(chart,lines,robotx+dirx,roboty+diry,line,pos+1);
+         else MoveRobot(chart,lines,robotx,roboty,line,pos+1);
+  ) // }}}
+  rc=new readchart(2 of 2);
+  rc[1]<<lines<<0;
+  rc[1]>>rest>>rx>>ry>>mx>>my>>chart;
+  rest[1]<<^pop;
+  rest[1]>>
+  {^nil:
+    debug("No move lines");
+    chart[1]<<^end;
+   ^cons:
+    rest[1]>>line>>lines;
+    MoveRobot(chart,lines,rx,ry,line,0);
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      lines[1]<<^cons<<line;
+      ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
