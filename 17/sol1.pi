@@ -1,0 +1,254 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+#include "map.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $parseprogramres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); /* chart */\
+  $end;
+#define $parseprogram \
+  2->1:String; \
+  $parseprogramres
+global $parseprogram parseprogram(1 pure,2);
+local pure service Service(parseprogram (1 of 2) this) // {{{
+( local pure ParseProgram($parseprogramres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) pgm, String pgmstr, Int addr) // {{{
+  ( sf=new strfind(2 of 2);
+    sf[1]<<pgmstr<<",";
+    sf[1]>>pos;
+    if 0<=pos
+    then String istr=pgmstr/pos;
+         Int i=0;
+         STRING2INT(istr,i) pure;
+         pgm[1]<<^set<<addr<<i;
+         ParseProgram(this,pgm,pgmstr%(pos+1),addr+1);
+    else Int i=0;
+         STRING2INT(pgmstr,i) pure;
+         pgm[1]<<^set<<addr<<i;
+         this[2]<<pgm;
+  ) // }}}
+  this[2]>>pgmstr;
+  pgm=new map(2 of 2);
+  pgm<<Int;
+  pgm<<Int;
+  pgm[1]<<stdorder_Int;
+  ParseProgram(this,pgm,pgmstr,0);
+) // }}}
+|
+#define $expres \
+  1->2:Int; \
+  $end;
+#define $exp \
+  2->1:Int; \
+  2->1:Int; \
+  $expres
+global $exp exp(1 pure,2);
+local pure service Service(exp (1 of 2) this) // {{{
+( local pure Exp($expres(1 of 1 pure,2) this, Int a, Int b, Int acc) // {{{
+  ( if b<=0
+    then this[2]<<acc;
+    else Exp(this,a,b-1,acc*a);
+  ) // }}}
+  this[2]>>a>>b;
+  Exp(this,a,b,1);
+) // }}}
+|
+#define $xorres \
+  1->2:Int; \
+  $end;
+#define $xor \
+  2->1:Int; \
+  2->1:Int; \
+  $xorres
+global $xor xor(1 pure,2);
+local pure service Service(xor (1 of 2) this) // {{{
+( local pure Xor($expres(1 of 1 pure,2) this, Int a1, Int a2, Int acc, Int digit) // {{{
+  ( if (a1<=0) and (a2<=0)
+    then this[2]<<acc;
+    else Bool b1=not (a1=(a1/2)*2);
+         Bool b2=not (a2=(a2/2)*2);
+         if (b1 and not b2) or (b2 and not b1)
+         then Xor(this,a1/2,a2/2,acc+digit,digit*2);
+         else Xor(this,a1/2,a2/2,acc,digit*2);
+  ) // }}}
+  this[2]>>a1>>a2;
+  Xor(this,a1,a2,0,1);
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( lines[1]<<^pop;
+  lines[1]>>
+  {^nil: debug("Error: No Register A line");
+   ^cons:
+    lines[1]>>l1>>lines1;
+    String vastr=l1%12;
+    Int a=0;
+    STRING2INT(vastr,a);
+    lines1[1]<<^pop;
+    lines1[1]>>
+    {^nil: debug("Error: No Register B line");
+     ^cons:
+      lines1[1]>>l2>>lines2;
+      String bstr=l2%12;
+      Int b=0;
+      STRING2INT(bstr,b);
+      lines2[1]<<^pop;
+      lines2[1]>>
+      {^nil: debug("Error: No Register C line");
+       ^cons:
+        lines2[1]>>l3>>lines3;
+        String cstr=l3%12;
+        Int c=0;
+        STRING2INT(cstr,c);
+        lines3[1]<<^pop;
+        lines3[1]>>
+        {^nil: debug("Error: No Program");
+         ^cons:
+          lines3[1]>>l4>>lines4;
+          String pgmstr=l4%9;
+          lines4[1]<<^end;
+          pp=new parseprogram(2 of 2);
+          pp[1]<<pgmstr;
+          pp[1]>>pgm;
+          local Sim($map(Int,Int)(2 of 1 pure,2) pgm, Int a, Int b, Int c, Int pc) // {{{
+          ( pgm[1]<<^lookup<<pc;
+            pgm[1]>>
+            {^nil:
+              debug("PC address out of mem");
+              pgm[1]<<^end;
+             ^val:
+              pgm[1]>>inst;
+              pgm[1]<<^lookup<<pc+1;
+              pgm[1]>>
+              {^nil: 
+                debug("PC operand out of mem");
+                pgm[1]<<^end;
+               ^val:
+                pgm[1]>>op;
+                Int opval=if op<=3 then op else if op=4 then a else if op=5 then b else if op=6 then c else 0-1;
+                //con=new console(2 of 2);
+                //con[1]<<^str<<"  Sim("<<^int<<a<<^str<<","<<^int<<b<<^str<<","<<^int<<c<<^str<<","<<^int<<pc<<^str<<") inst="<<^int<<inst<<^str<<" op="<<^int<<op<<^str<<" opval="<<^int<<opval<<^nl<<^end;
+                if inst=0
+                then if opval<=0-1
+                     then
+                       debug("Bad opcode");
+                       pgm[1]<<^end;
+                     else
+                       e=new exp(2 of 2);
+                       e[1]<<2<<opval;
+                       e[1]>>d;
+                       Sim(pgm,a/d,b,c,pc+2);
+                else if inst=1
+                then x=new xor(2 of 2);
+                     x[1]<<b<<op;
+                     x[1]>>v;
+                     Sim(pgm,a,v,c,pc+2);
+                else if inst=2
+                then if opval<=0-1
+                     then
+                       debug("Bad opcode");
+                       pgm[1]<<^end;
+                     else
+                       Sim(pgm,a,opval-(opval/8)*8,c,pc+2);
+                else if inst=3
+                then if a<=0
+                     then Sim(pgm,a,b,c,pc+2);
+                     else Sim(pgm,a,b,c,op);
+                else if inst=4
+                then x=new xor(2 of 2);
+                     x[1]<<b<<c;
+                     x[1]>>v;
+                     Sim(pgm,a,v,c,pc+2);
+                else if inst=5
+                then if opval<=0-1
+                     then
+                       debug("Bad opcode");
+                       pgm[1]<<^end;
+                     else
+                       con=new console(2 of 2);
+                       con[1]<<^int<<opval-(opval/8)*8<<^str<<","<<^end;
+                       Sim(pgm,a,b,c,pc+2);
+                else if inst=6
+                then if opval<=0-1
+                     then
+                       debug("Bad opcode");
+                       pgm[1]<<^end;
+                     else
+                       e=new exp(2 of 2);
+                       e[1]<<2<<opval;
+                       e[1]>>d;
+                       Sim(pgm,a,a/d,c,pc+2);
+                else if inst=7
+                then if opval<=0-1
+                     then
+                       debug("Bad opcode");
+                       pgm[1]<<^end;
+                     else
+                       e=new exp(2 of 2);
+                       e[1]<<2<<opval;
+                       e[1]>>d;
+                       Sim(pgm,a,b,a/d,pc+2);
+                else debug("Unknown instruction");
+                     pgm[1]<<^end;
+              }
+            }
+          ) // }}}
+          Sim(pgm,a,b,c,0);
+        }
+      }
+    }
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
