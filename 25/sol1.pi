@@ -1,0 +1,250 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $parselockres \
+  1->2:$list(String)(2 of 1 pure,2); \
+  1->2:Int; \
+  $end;
+#define $parselock \
+  2->1:$list(String)(2 of 1 pure,2); \
+  $parselockres
+global $parselock parselock(1 pure,2);
+local pure service Service(parselock (1 of 2) this) // {{{
+( local pure ParseLock($parselockres(1 of 1 pure,2) this, // {{{
+                       $list(String)(2 of 1 pure,2) lines,
+                       Int l1, Int l2, Int l3, Int l4, Int l5, Int pos)
+  ( if pos=0
+    then lines[1]<<^pop;
+         lines[1]>>
+         {^nil:
+           n=new list(2 of 2);
+           n<<String;
+           this[2]<<n<<0-1;
+          ^cons:
+           lines[1]>>line>>ltail;
+           if line="#####"
+           then ParseLock(this,ltail,l1,l2,l3,l4,l5,pos+1);
+           else HOST("cout<<\"parselock: first line error\"<<endl;") pure;
+                ParseLock(this,ltail,l1,l2,l3,l4,l5,pos+1);
+         }
+    else if pos<=6
+    then lines[1]<<^pop;
+         lines[1]>>
+         {^nil:
+           n=new list(2 of 2);
+           n<<String;
+           this[2]<<n<<0-1;
+          ^cons:
+           lines[1]>>line>>ltail;
+           Int n1=if line&0="#"&0 then pos else l1;
+           Int n2=if line&1="#"&0 then pos else l2;
+           Int n3=if line&2="#"&0 then pos else l3;
+           Int n4=if line&3="#"&0 then pos else l4;
+           Int n5=if line&4="#"&0 then pos else l5;
+           ParseLock(this,ltail,n1,n2,n3,n4,n5,pos+1);
+         }
+    else this[2]<<lines<<l1*100*100*100*100+l2*100*100*100+l3*100*100+l4*100+l5;
+  ) // }}}
+  this[2]>>strs;
+  ParseLock(this,strs,0,0,0,0,0,0);
+) // }}}
+|
+#define $parsekeyres \
+  1->2:$list(String)(2 of 1 pure,2); \
+  1->2:Int; \
+  $end;
+#define $parsekey \
+  2->1:$list(String)(2 of 1 pure,2); \
+  $parsekeyres
+global $parsekey parsekey(1 pure,2);
+local pure service Service(parsekey (1 of 2) this) // {{{
+( local pure ParseKey($parsekeyres(1 of 1 pure,2) this, // {{{
+                      $list(String)(2 of 1 pure,2) lines,
+                      Int k1, Int k2, Int k3, Int k4, Int k5, Int pos)
+  ( if pos=6
+    then lines[1]<<^pop;
+         lines[1]>>
+         {^nil:
+           n=new list(2 of 2);
+           n<<String;
+           this[2]<<n<<0-1;
+          ^cons:
+           lines[1]>>line>>ltail;
+           if line="#####"
+           then ParseKey(this,ltail,k1,k2,k3,k4,k5,pos+1);
+           else HOST("cout<<\"parsekey: last line error\"<<endl;") pure;
+                ParseKey(this,ltail,k1,k2,k3,k4,k5,pos+1);
+         }
+    else if pos<=6
+    then lines[1]<<^pop;
+         lines[1]>>
+         {^nil:
+           n=new list(2 of 2);
+           n<<String;
+           this[2]<<n<<0-1;
+          ^cons:
+           lines[1]>>line>>ltail;
+           Int n1=if line&0="#"&0 then k1 else 5-pos;
+           Int n2=if line&1="#"&0 then k2 else 5-pos;
+           Int n3=if line&2="#"&0 then k3 else 5-pos;
+           Int n4=if line&3="#"&0 then k4 else 5-pos;
+           Int n5=if line&4="#"&0 then k5 else 5-pos;
+           ParseKey(this,ltail,n1,n2,n3,n4,n5,pos+1);
+         }
+    else this[2]<<lines<<k1*100*100*100*100+k2*100*100*100+k3*100*100+k4*100+k5;
+  ) // }}}
+  this[2]>>strs;
+  ParseKey(this,strs,6,6,6,6,6,0);
+) // }}}
+|
+#define $trykeysres \
+  1->2:Int; \
+  $end;
+#define $trykeys \
+  2->1:Int; \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $trykeysres
+global $trykeys trykeys(1 pure,2);
+local pure service Service(trykeys (1 of 2) this) // {{{
+( this[2]>>lock>>keys;
+  keys[1]<<^pop;
+  keys[1]>>
+  {^nil:
+    this[2]<<0;
+   ^cons:
+    keys[1]>>key>>ktail;
+    tk=new trykeys(2 of 2);
+    tk[1]<<lock<<ktail;
+    tk[1]>>count;
+    Int fit=lock+key;
+    Int f1=fit/(100*100*100*100);
+    Int f2=fit/(100*100*100)-f1*100;
+    Int f3=fit/(100*100)-(f1*100+f2)*100;
+    Int f4=fit/100-(((f1*100)+f2)*100+f3)*100;
+    Int f5=fit-(fit/100)*100;
+    if (f1<=5) and (f2<=5) and (f3<=5) and (f4<=5) and (f5<=5)
+    then this[2]<<count+1;
+    else this[2]<<count;
+  }
+) // }}}
+|
+#define $findmatchesres \
+  1->2:Int; \
+  $end;
+#define $findmatches \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $findmatchesres
+global $findmatches findmatches(1 pure,2);
+local pure service Service(findmatches (1 of 2) this) // {{{
+( this[2]>>locks>>keys;
+  locks[1]<<^pop;
+  locks[1]>>
+  {^nil:
+    this[2]<<0;
+    keys[1]<<^end;
+   ^cons:
+    locks[1]>>lock>>ltail;
+    tk=new trykeys(2 of 2);
+    keys[1]<<^copy;
+    keys[1]>>kcopy;
+    tk[1]<<lock<<kcopy;
+    tk[1]>>count1;
+    fm=new findmatches(2 of 2);
+    fm[1]<<ltail<<keys;
+    fm[1]>>count2;
+    this[2]<<count1+count2;
+  }
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines, $list(Int)(2 of 1 pure,2) locks, $list(Int)(2 of 1 pure,2) keys) // {{{
+( lines[1]<<^pop;
+  lines[1]>>
+  {^nil:
+    fm=new findmatches(2 of 2);
+    fm[1]<<locks<<keys;
+    fm[1]>>count;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Number of matches: "<<^int<<count<<^nl<<^end;
+    //pl=new printlist(2 of 2);
+    //pl<<Int;
+    //pl[1]<<int2string<<locks;
+    //pl=new printlist(2 of 2);
+    //pl<<Int;
+    //pl[1]<<int2string<<keys;
+   ^cons:
+    lines[1]>>l0>>ltail;
+    ltail[1]<<^cons<<l0;
+    if l0="#####"
+    then pl=new parselock(2 of 2);
+         pl[1]<<ltail;
+         pl[1]>>lines>>lock;
+         locks[1]<<^snoc<<lock;
+         Process(lines,locks,keys);
+    else pk=new parsekey(2 of 2);
+         pk[1]<<ltail;
+         pk[1]>>lines>>key;
+         keys[1]<<^snoc<<key;
+         Process(lines,locks,keys);
+  }
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      locks=new list(2 of 2);
+      locks<<Int;
+      keys=new list(2 of 2);
+      keys<<Int;
+      Process(rlines,locks,keys);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
