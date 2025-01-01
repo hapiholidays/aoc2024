@@ -43,7 +43,7 @@ $(name2): $(name2).cpp
 
 $(name2).cpp: $(name2).pip
 	@echo "=== Compiling $(name2).pip to $(name2).cpp"
-	$(HAPI) -compile -f $(name2).pip > $(name2).cpp
+	$(HAPI) -compile -optimize -f $(name2).pip > $(name2).cpp
 
 $(name2).pip: $(name2).pi
 	@echo "=== Preprocessing $(name2).pi to $(name2).pip"
