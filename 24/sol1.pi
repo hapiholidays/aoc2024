@@ -1,0 +1,283 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+#include "map.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $parsecirquitres \
+  1->2:$map(String,String)(2 of 1 pure,2); \
+  $end;
+#define $parsecirquit \
+  2->1:$list(String)(2 of 1 pure,2); \
+  $parsecirquitres
+global $parsecirquit parsecirquit(1 pure,2);
+local pure service Service(parsecirquit (1 of 2) this) // {{{
+( local pure ParseCirquit($parsecirquitres(1 of 1 pure,2) this, $list(String)(2 of 1 pure,2) lines, $map(String,String)(2 of 1 pure,2) cirquit) // {{{
+  ( lines[1]<<^pop;
+    lines[1]>>
+    {^nil:
+      this[2]<<cirquit;
+     ^cons:
+      lines[1]>>line>>ltail;
+      sf=new strfind(2 of 2);
+      sf[1]<<line<<": ";
+      sf[1]>>pos;
+      if 0<=pos
+      then // Input
+        String name=line/pos;
+        String val=line%(pos+2);
+        cirquit[1]<<^set<<name<<val;
+        ParseCirquit(this,ltail,cirquit);
+      else // Gate
+        sf=new strfind(2 of 2);
+        sf[1]<<line<<" -> ";
+        sf[1]>>pos;
+        String name=line%(pos+4);
+        String val=line/pos;
+        cirquit[1]<<^set<<name<<val;
+        ParseCirquit(this,ltail,cirquit);
+    }
+  ) // }}}
+  this[2]>>lines;
+  c=new map(2 of 2);
+  c<<String;
+  c<<String;
+  c[1]<<stdorder_String;
+  ParseCirquit(this,lines,c);
+) // }}}
+|
+#define $evalcirquitres \
+  1->2:$map(String,String)(2 of 1 pure,2); \
+  1->2:Bool; \
+  $end;
+#define $evalcirquit \
+  2->1:$map(String,String)(2 of 1 pure,2); \
+  2->1:$map(String,String)(2 of 1 pure,2); \
+  $evalcirquitres
+global $evalcirquit evalcirquit(1 pure,2);
+local pure service Service(evalcirquit (1 of 2) this) // {{{
+( this[2]>>cirquit>>solved;
+  cirquit[1]<<^pop;
+  cirquit[1]>>
+  {^nil:
+    this[2]<<solved<<false;
+   ^tree:
+    cirquit[1]>>name>>value>>lc>>rc;
+    scl=new evalcirquit(2 of 2);
+    scl[1]<<lc<<solved;
+    scl[1]>>solved>>pl;
+    scr=new evalcirquit(2 of 2);
+    scr[1]<<rc<<solved;
+    scr[1]>>solved>>pr;
+    // Try to solve value
+    if (value="0") or (value="1")
+    then // already solved
+         this[2]<<solved<<pl or pr;
+    else sf_and=new strfind(2 of 2);
+         sf_and[1]<<value<<" AND ";
+         sf_and[1]>>pos_and;
+         if 0<=pos_and
+    then String lhs=value/pos_and;
+         String rhs=value%(pos_and+5);
+         solved[1]<<^lookup<<lhs;
+         solved[1]>>
+         {^nil:
+           this[2]<<solved<<pl or pr; // Unable to solve
+          ^val:
+           solved[1]>>lhsval;
+           solved[1]<<^lookup<<rhs;
+           solved[1]>>
+           {^nil:
+             this[2]<<solved<<pl or pr; // Unable to solve
+            ^val:
+             solved[1]>>rhsval;
+             if (lhsval="1") and (rhsval="1")
+             then solved[1]<<^set<<name<<"1";
+                  this[2]<<solved<<true;
+             else if (lhsval="0") or (rhsval="0")
+             then solved[1]<<^set<<name<<"0";
+                  this[2]<<solved<<true;
+             else this[2]<<solved<<pl or pr;
+           }
+         }
+    else sf_or=new strfind(2 of 2);
+         sf_or[1]<<value<<" OR ";
+         sf_or[1]>>pos_or;
+         if 0<=pos_or
+    then String lhs=value/pos_or;
+         String rhs=value%(pos_or+4);
+         solved[1]<<^lookup<<lhs;
+         solved[1]>>
+         {^nil:
+           this[2]<<solved<<pl or pr; // Unable to solve
+          ^val:
+           solved[1]>>lhsval;
+           solved[1]<<^lookup<<rhs;
+           solved[1]>>
+           {^nil:
+             this[2]<<solved<<pl or pr; // Unable to solve
+            ^val:
+             solved[1]>>rhsval;
+             if (lhsval="1") or (rhsval="1")
+             then solved[1]<<^set<<name<<"1";
+                  this[2]<<solved<<true;
+             else if (lhsval="0") and (rhsval="0")
+             then solved[1]<<^set<<name<<"0";
+                  this[2]<<solved<<true;
+             else this[2]<<solved<<pl or pr;
+           }
+         }
+    else sf_xor=new strfind(2 of 2);
+         sf_xor[1]<<value<<" XOR ";
+         sf_xor[1]>>pos_xor;
+         if 0<=pos_xor
+    then String lhs=value/pos_xor;
+         String rhs=value%(pos_xor+5);
+         solved[1]<<^lookup<<lhs;
+         solved[1]>>
+         {^nil:
+           this[2]<<solved<<pl or pr; // Unable to solve
+          ^val:
+           solved[1]>>lhsval;
+           solved[1]<<^lookup<<rhs;
+           solved[1]>>
+           {^nil:
+             this[2]<<solved<<pl or pr; // Unable to solve
+            ^val:
+             solved[1]>>rhsval;
+             if ((lhsval="1") and (rhsval="0")) or ((lhsval="0") and (rhsval="1"))
+             then solved[1]<<^set<<name<<"1";
+                  this[2]<<solved<<true;
+             else if (lhsval=rhsval)
+             then solved[1]<<^set<<name<<"0";
+                  this[2]<<solved<<true;
+             else this[2]<<solved<<pl or pr;
+           }
+         }
+    else // Unknown expression
+         this[2]<<solved<<pl or pr; // Unable to solve
+  }
+) // }}}
+|
+#define $solvecirquitres \
+  1->2:$map(String,String)(2 of 1 pure,2); \
+  $end;
+#define $solvecirquit \
+  2->1:$map(String,String)(2 of 1 pure,2); \
+  $solvecirquitres
+global $solvecirquit solvecirquit(1 pure,2);
+local pure service Service(solvecirquit (1 of 2) this) // {{{
+( this[2]>>cirquit;
+  cirquit[1]<<^copy;
+  cirquit[1]>>ccopy;
+  ec=new evalcirquit(2 of 2);
+  ec[1]<<cirquit<<ccopy;
+  ec[1]>>eval>>progress;
+  if progress
+  then sc=new solvecirquit(2 of 2);
+       sc[1]<<eval;
+       sc[1]>>solved;
+       this[2]<<solved;
+  else this[2]<<eval;
+) // }}}
+|
+#define $makeintres \
+  1->2:Int; \
+  $end;
+#define $makeint \
+  2->1:$map(String,String)(2 of 1 pure,2); \
+  2->1:String; \
+  $makeintres
+global $makeint makeint(1 pure,2);
+local pure service Service(makeint (1 of 2) this) // {{{
+( this[2]>>cirquit>>prefix;
+  local pure MakeInt($makeintres(1 of 1 pure,2) this, $map(String,String)(2 of 1 pure,2) cirquit, Int pos, Int acc, Int exp) // {{{
+  ( String posstr="";
+    INT2STRING(pos,posstr) pure;
+    String pstr=if posstr&^length=1 then "0"+posstr else posstr;
+    cirquit[1]<<^lookup<<prefix+pstr;
+    cirquit[1]>>
+    {^nil:
+      cirquit[1]<<^end;
+      this[2]<<acc;
+     ^val:
+      cirquit[1]>>val;
+      if val="1"
+      then MakeInt(this,cirquit,pos+1,acc+exp,exp*2);
+      else if val="0"
+      then MakeInt(this,cirquit,pos+1,acc,exp*2);
+      else HOST("cout<<\"Error: unevaluated wire\"<<endl;")pure;
+           MakeInt(this,cirquit,pos+1,acc,exp*2);
+    }
+  ) // }}}
+  MakeInt(this,cirquit,0,0,1);
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( pc=new parsecirquit(2 of 2);
+  pc[1]<<lines;
+  pc[1]>>cirquit;
+  sc=new solvecirquit(2 of 2);
+  sc[1]<<cirquit;
+  sc[1]>>solved;
+  //solved[1]<<^end;
+  mi=new makeint(2 of 2);
+  mi[1]<<solved<<"z";
+  mi[1]>>val;
+  c=new console(2 of 2);
+  c[1]<<^str<<"Result value: "<<^int<<val<<^nl<<^end;
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
