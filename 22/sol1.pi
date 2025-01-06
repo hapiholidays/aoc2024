@@ -1,0 +1,170 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $mixres \
+  1->2:Int; \
+  $end;
+#define $mix \
+  2->1:Int; \
+  2->1:Int; \
+  $mixres
+global $mix mix(1 pure,2);
+local pure service Service(mix (1 of 2) this) // {{{
+( local pure Xor($mixres(1 of 1 pure,2) this, Int a1, Int a2, Int acc, Int digit) // {{{
+  ( if (a1<=0) and (a2<=0)
+    then this[2]<<acc;
+    else Bool b1=not (a1=(a1/2)*2);
+         Bool b2=not (a2=(a2/2)*2);
+         if (b1 and not b2) or (b2 and not b1)
+         then Xor(this,a1/2,a2/2,acc+digit,digit*2);
+         else Xor(this,a1/2,a2/2,acc,digit*2);
+  ) // }}}
+  this[2]>>a1>>a2;
+  Xor(this,a1,a2,0,1);
+) // }}}
+|
+//#define $pruneres \
+//  1->2:Int; \
+//  $end;
+//#define $prune \
+//  2->1:Int; \
+//  $pruneres
+//global $prune prune(1 pure,2);
+//local pure service Service(prune (1 of 2) this) // {{{
+//( this[2]>>v;
+//  this[2]<<v-(v/16777216)*16777216;
+//) // }}}
+//|
+#define $nextres \
+  1->2:Int; \
+  $end;
+#define $next \
+  2->1:Int; \
+  2->1:Int; \
+  $nextres
+global $next next(1 pure,2);
+local pure service Service(next (1 of 2) this) // {{{
+( local pure Next($nextres(1 of 1 pure,2) this, Int v, Int iterations) // {{{
+  ( if iterations<=0
+    then this[2]<<v;
+    else
+      m=new mix(2 of 2);
+      m[1]<<v<<v*64;
+      m[1]>>v2;
+      //p=new prune(2 of 2);
+      //p[1]<<v2;
+      //p[1]>>v3;
+      Int v3=v2-(v2/16777216)*16777216;
+      m2=new mix(2 of 2);
+      m2[1]<<v3<<v3/32;
+      m2[1]>>v4;
+      //p2=new prune(2 of 2);
+      //p2[1]<<v4;
+      //p2[1]>>v5;
+      Int v5=v4-(v4/16777216)*16777216;
+      m3=new mix(2 of 2);
+      m3[1]<<v5<<v5*2048;
+      m3[1]>>v6;
+      //p3=new prune(2 of 2);
+      //p3[1]<<v6;
+      //p3[1]>>v7;
+      Int v7=v6-(v6/16777216)*16777216;
+      Next(this,v7,iterations-1);
+  ) // }}}
+  this[2]>>v>>iterations;
+  Next(this,v,iterations);
+  //c=new console(2 of 2);
+  //c[1]<<^str<<"Next debug: "<<^int<<v<<^str<<"->"<<^int<<v2<<^str<<"->"<<^int<<v3<<^str<<"->"<<^int<<v3<<^str<<"->"<<^int<<v4<<^str<<"->"<<^int<<v5<<^str<<"->"<<^int<<v6<<^str<<"->"<<^int<<v7<<^nl<<^end;
+) // }}}
+|
+#define $nextsumres \
+  1->2:Int; \
+  $end;
+#define $nextsum \
+  2->1:$list(String)(2 of 1 pure,2); \
+  $nextsumres
+global $nextsum nextsum(1 pure,2);
+local pure service Service(nextsum (1 of 2) this) // {{{
+( this[2]>>vals;
+  vals[1]<<^pop;
+  vals[1]>>
+  {^nil:
+    this[2]<<0;
+   ^cons:
+    vals[1]>>str>>vtail;
+    Int val=0;
+    STRING2INT(str,val) pure;
+    n=new next(2 of 2);
+    n[1]<<val<<2000;
+    n[1]>>key;
+    //c=new console(2 of 2);
+    //c[1]<<^str<<"Value "<<^int<<val<<^str<<" has key "<<^int<<key<<^nl<<^end;
+    ns=new nextsum(2 of 2);
+    ns[1]<<vtail;
+    ns[1]>>res;
+    this[2]<<res+key;
+  }
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( ns=new nextsum(2 of 2);
+  ns[1]<<lines;
+  ns[1]>>res;
+  c=new console(2 of 2);
+  c[1]<<^str<<"Sum of final keys are: "<<^int<<res<<^nl<<^end;
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      if line&^length<=0
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
