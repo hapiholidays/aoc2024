@@ -5,189 +5,276 @@
 #include <console.pi>
 #include <convert.pi>
 #include "listutils.pi"
-#include "strutils.pi"
 #include "map.pi"
 
 #define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
 
-#define $parsepatterns \
-  2->1:String; \
-  $list(String)
-global $parsepatterns parsepatterns(1 pure,2);
-local pure service Service(parsepatterns (1 of 2) this) // {{{
-( this[2]>>str;
-  sf=new strfind(2 of 2);
-  sf[1]<<str<<", ";
-  sf[1]>>pos;
-  if 0<=pos
-  then pat=str/pos;
-       rest=str%(pos+2);
-       pp=new parsepatterns(2 of 2);
-       pp[1]<<rest;
-       pp[1]<<^cons<<pat;
-       pp[1]<<^takeover<<this;
-  else res=new list(2 of 2);
-       res<<String;
-       res[1]<<^cons<<str;
-       res[1]<<^takeover<<this;
+#define $mixres \
+  1->2:Int; \
+  $end;
+#define $mix \
+  2->1:Int; \
+  2->1:Int; \
+  $mixres
+global $mix mix(1 pure,2);
+local pure service Service(mix (1 of 2) this) // {{{
+( local pure Xor($mixres(1 of 1 pure,2) this, Int a1, Int a2, Int acc, Int digit) // {{{
+  ( if (a1<=0) and (a2<=0)
+    then this[2]<<acc;
+    else Bool b1=not (a1=(a1/2)*2);
+         Bool b2=not (a2=(a2/2)*2);
+         if (b1 and not b2) or (b2 and not b1)
+         then Xor(this,a1/2,a2/2,acc+digit,digit*2);
+         else Xor(this,a1/2,a2/2,acc,digit*2);
+  ) // }}}
+  this[2]>>a1>>a2;
+  Xor(this,a1,a2,0,1);
 ) // }}}
 |
-#define $finduncheckedres \
+#define $nextres \
+  1->2:Int; \
+  $end;
+#define $next \
+  2->1:Int; \
+  $nextres
+global $next next(1 pure,2);
+local pure service Service(next (1 of 2) this) // {{{
+( this[2]>>v;
+  m=new mix(2 of 2);
+  m[1]<<v<<v*64;
+  m[1]>>v2;
+  Int v3=v2-(v2/16777216)*16777216;
+  m2=new mix(2 of 2);
+  m2[1]<<v3<<v3/32;
+  m2[1]>>v4;
+  Int v5=v4-(v4/16777216)*16777216;
+  m3=new mix(2 of 2);
+  m3[1]<<v5<<v5*2048;
+  m3[1]>>v6;
+  Int v7=v6-(v6/16777216)*16777216;
+  this[2]<<v7;
+  //c=new console(2 of 2);
+  //c[1]<<^str<<"Next debug: "<<^int<<v<<^str<<"->"<<^int<<v2<<^str<<"->"<<^int<<v3<<^str<<"->"<<^int<<v3<<^str<<"->"<<^int<<v4<<^str<<"->"<<^int<<v5<<^str<<"->"<<^int<<v6<<^str<<"->"<<^int<<v7<<^nl<<^end;
+) // }}}
+|
+#define $sequencepriceres \
   1->2:$map(Int,Int)(2 of 1 pure,2); \
-  1->2:$set(Int)(2 of 1 pure,2); \
-  1->2:Int; /*pos*/\
-  1->2:Int; /*count*/\
   $end;
-#define $findunchecked \
+#define $sequenceprice \
+  2->1:Int; \
+  $sequencepriceres
+global $sequenceprice sequenceprice(1 pure,2);
+local pure service Service(sequenceprice (1 of 2) this) // {{{
+( local pure Prices($sequencepriceres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) prices, Int v, Int cp, Int cpp, Int cppp, Int iterations) // {{{
+  ( if iterations<=0
+    then this[2]<<prices;
+    else n=new next(2 of 2);
+         n[1]<<v;
+         n[1]>>nv;
+         Int cost=v-(v/10)*10;
+         Int costn=nv-(nv/10)*10;
+         Int seq=(9+cppp)+(9+cpp)*100+(9+cp)*100*100+(9+costn-cost)*100*100*100;
+         prices[1]<<^member<<seq;
+         prices[1]>>member;
+         if member
+         then Prices(this,prices,nv,costn-cost,cp,cpp,iterations-1);
+         else prices[1]<<^set<<seq<<costn;
+              //c=new console(2 of 2);
+              //c[1]<<^str<<"Price of "<<^int<<seq<<^str<<" is "<<^int<<costn<<^nl<<^end;
+              Prices(this,prices,nv,costn-cost,cp,cpp,iterations-1);
+  ) // }}}
+  this[2]>>val;
+  Int cost=val-(val/10)*10;
+  n=new next(2 of 2);
+  n[1]<<val;
+  n[1]>>nval;
+  Int ncost=nval-(nval/10)*10;
+  n=new next(2 of 2);
+  n[1]<<nval;
+  n[1]>>nnval;
+  Int nncost=nnval-(nnval/10)*10;
+  n=new next(2 of 2);
+  n[1]<<nnval;
+  n[1]>>nnnval;
+  Int nnncost=nnnval-(nnnval/10)*10;
+  prices=new map(2 of 2);
+  prices<<Int;
+  prices<<Int;
+  prices[1]<<stdorder_Int;
+  Prices(this,prices,nnnval,nnncost-nncost,nncost-ncost,ncost-cost,2000-3);
+) // }}}
+|
+#define $maxpriceres \
+  1->2:Int; \
+  1->2:Int; \
+  $end;
+#define $maxprice \
   2->1:$map(Int,Int)(2 of 1 pure,2); \
-  2->1:$set(Int)(2 of 1 pure,2); \
-  2->1:Int; /*max*/\
-  $finduncheckedres
-global $findunchecked findunchecked(1 pure,2);
-local pure service Service(findunchecked (1 of 2) this) // {{{
-( local pure FindUnchecked($finduncheckedres(1 of 1 pure,2) this, // {{{
-                           $map(Int,Int)(2 of 1 pure,2) reached,
-                           $set(Int)(2 of 1 pure,2) checked,
-                           Int max,
-                           Int pos)
-  ( if max+1<=pos
-    then this[2]<<reached<<checked<<0-1<<0;
-    else reached[1]<<^lookup<<pos;
-         reached[1]>>
-         {^nil:
-           FindUnchecked(this,reached,checked,max,pos+1);
-          ^val:
-           reached[1]>>r;
-           checked[1]<<^member<<pos;
-           checked[1]>>c;
-           if not c
-           then this[2]<<reached<<checked<<pos<<r;
-           else FindUnchecked(this,reached,checked,max,pos+1);
-         }
-  ) // }}}
-  this[2]>>reached>>checked>>max;
-  FindUnchecked(this,reached,checked,max,0);
-) // }}}
-|
-#define $testpatternres \
-  1->2:Int; \
-  $end;
-#define $testpattern \
-  2->1:$list(String)(2 of 1 pure,2); \
-  2->1:String; \
-  $testpatternres
-global $testpattern testpattern(1 pure,2);
-local pure service Service(testpattern (1 of 2) this) // {{{
-( local pure Test($testpatternres(1 of 1 pure,2) this, // {{{
-                  String test,
-                  $list(String)(2 of 1 pure,2) pats,
-                  $map(Int,Int)(2 of 1 pure,2) reached,
-                  $set(Int)(2 of 1 pure,2) checked)
-  ( fu=new findunchecked(2 of 2);
-    fu[1]<<reached<<checked<<test&^length;
-    fu[1]>>reached>>checked>>pos>>count;
-    if 0<=pos
-    then local pure Checkpos($testpatternres(1 of 1 pure,2) this, // {{{
-                        $list(String)(2 of 1 pure,2) pats,
-                        $list(String)(2 of 1 pure,2) allpats,
-                        $map(Int,Int)(2 of 1 pure,2) reached,
-                        $set(Int)(2 of 1 pure,2) checked)
-         ( pats[1]<<^pop;
-           pats[1]>>
-           {^nil:
-             checked[1]<<^insert<<pos;
-             Test(this,test,allpats,reached,checked);
-            ^cons:
-             pats[1]>>pat>>ptail;
-             // Test pat
-             Int patlen=pat&^length;
-             if (patlen+pos<=test&^length) and (pat=(test%pos)/patlen)
-             then reached[1]<<^lookup<<pos+patlen;
-                  reached[1]>>
-                  {^nil:
-                    reached[1]<<^set<<pos+patlen<<count;
-                    Checkpos(this,ptail,allpats,reached,checked);
-                   ^val:
-                    reached[1]>>count2;
-                    reached[1]<<^set<<pos+patlen<<count+count2;
-                    Checkpos(this,ptail,allpats,reached,checked);
-                  }
-             else Checkpos(this,ptail,allpats,reached,checked);
-           }
-         ) // }}}
-         pats[1]<<^copy;
-         pats[1]>>pcopy;
-         Checkpos(this,pats,pcopy,reached,checked);
-    else pats[1]<<^end;
-         checked[1]<<^end;
-         reached[1]<<^lookup<<test&^length;
-         reached[1]>>
-         {^nil: this[2]<<0;
-                reached[1]<<^end;
-          ^val: reached[1]>>r;
-                this[2]<<r;
-                reached[1]<<^end;
-         }
-  ) // }}}
-  this[2]>>allpats>>test;
-  reached=new map(2 of 2);
-  reached<<Int;
-  reached<<Int;
-  reached[1]<<stdorder_Int;
-  reached[1]<<^set<<0<<1;
-  checked=new set(2 of 2);
-  checked<<Int;
-  checked[1]<<stdorder_Int;
-  Test(this,test,allpats,reached,checked);
-) // }}}
-|
-#define $testpatternsres \
-  1->2:Int; \
-  $end;
-#define $testpatterns \
-  2->1:$list(String)(2 of 1 pure,2); \
-  2->1:$list(String)(2 of 1 pure,2); \
-  $testpatternsres
-global $testpatterns testpatterns(1 pure,2);
-local pure service Service(testpatterns (1 of 2) this) // {{{
-( this[2]>>patterns>>tests;
-  tests[1]<<^pop;
-  tests[1]>>
-  {^nil:
-    this[2]<<0;
-    patterns[1]<<^end;
-   ^cons:
-    tests[1]>>test>>tstail;
-    patterns[1]<<^copy;
-    patterns[1]>>pcopy;
-    tp=new testpattern(2 of 2);
-    tp[1]<<pcopy<<test;
-    tp[1]>>c1;
-    //c=new console(2 of 2);
-    //c[1]<<^str<<"Solutions: "<<^int<<c1<<^nl<<^end;
-    tp2=new testpatterns(2 of 2);
-    tp2[1]<<patterns<<tstail;
-    tp2[1]>>c2;
-    this[2]<<c1+c2;
+  $maxpriceres
+global $maxprice maxprice(1 pure,2);
+local pure service Service(maxprice (1 of 2) this) // {{{
+( this[2]>>ps;
+  ps[1]<<^pop;
+  ps[1]>>
+  {^nil: this[2]<<0<<0;
+   ^tree:
+    ps[1]>>seq>>price>>ps1>>ps2;
+    mp1=new maxprice(2 of 2);
+    mp1[1]<<ps1;
+    mp1[1]>>s1>>p1;
+    mp2=new maxprice(2 of 2);
+    mp2[1]<<ps2;
+    mp2[1]>>s2>>p2;
+    if (p1<=price) and (p2<=price)
+    then this[2]<<seq<<price;
+    else if (price<=p1) and (p2<=p1)
+    then this[2]<<s1<<p1;
+    else this[2]<<s2<<p2;
   }
+) // }}}
+|
+#define $mergepricesres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  $end;
+#define $mergeprices \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  $mergepricesres
+global $mergeprices mergeprices(1 pure,2);
+local pure service Service(mergeprices (1 of 2) this) // {{{
+( this[2]>>ps1>>ps2;
+  ps1[1]<<^pop;
+  ps1[1]>>
+  {^nil: this[2]<<ps2;
+   ^tree:
+    ps1[1]>>seq>>price>>ps11>>ps12;
+    mp1=new mergeprices(2 of 2);
+    mp1[1]<<ps11<<ps2;
+    mp1[1]>>ps2;
+    mp2=new mergeprices(2 of 2);
+    mp2[1]<<ps12<<ps2;
+    mp2[1]>>ps2;
+    ps2[1]<<^lookup<<seq;
+    ps2[1]>>
+    {^nil:
+      ps2[1]<<^set<<seq<<price;
+      this[2]<<ps2;
+     ^val:
+      ps2[1]>>price2;
+      ps2[1]<<^set<<seq<<price2+price;
+      this[2]<<ps2;
+    }
+  }
+) // }}}
+|
+#define $trimpricesres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  $end;
+#define $trimprices \
+  2->1:Int; \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  $trimpricesres
+global $trimprices trimprices(1 pure,2);
+local pure service Service(trimprices (1 of 2) this) // {{{
+( this[2]>>cap>>ps;
+  local pure TrimPrices($trimprices(1 of 1 pure,2) this, $map(Int,Int) ps, Int discard) // {{{
+  ( if discard<=0
+    then this[2]<<ps;
+    else ps[1]<<^popleast;
+         ps[1]>>
+         {^nil:
+           this[2]<<ps;
+          ^val:
+           ps[1]>>a>>b;
+           TrimPrices(this,ps,discard-1);
+         }
+  ) // }}}
+  ps[1]<<^size;
+  ps[1]>>size;
+  TrimPrices(this,ps,size-cap);
+) // }}}
+|
+#define $mergepricelistres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  $end;
+#define $mergepricelist \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $mergepricelistres
+global $mergepricelist mergepricelist(1 pure,2);
+local pure service Service(mergepricelist (1 of 2) this) // {{{
+( this[2]>>monkeys;
+  monkeys[1]<<^pop;
+  monkeys[1]>>
+  {^nil: 
+    prices=new map(2 of 2);
+    prices<<Int;
+    prices<<Int;
+    prices[1]<<stdorder_Int;
+    this[2]<<prices;
+   ^cons:
+    monkeys[1]>>monkey>>mtail;
+    sp=new sequenceprice(2 of 2);
+    sp[1]<<monkey;
+    sp[1]>>prices1;
+    prices1[1]<<^size;
+    prices1[1]>>len;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Number of sequences: "<<^int<<len<<^nl<<^end;
+    mpl=new mergepricelist(2 of 2);
+    mpl[1]<<mtail;
+    mpl[1]>>prices2;
+    mp=new mergeprices(2 of 2);
+    mp[1]<<prices1<<prices2;
+    mp[1]>>prices;
+
+    tp=new trimprices(2 of 2);
+    tp[1]<<100000<<prices;
+    tp[1]>>prices;
+    this[2]<<prices;
+  }
+) // }}}
+|
+#define $bestsequenceres \
+  1->2:Int; \
+  1->2:Int; \
+  $end;
+#define $bestsequence \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  $bestsequenceres
+global $bestsequence bestsequence(1 pure,2);
+local pure service Service(bestsequence (1 of 2) this) // {{{
+( this[2]>>monkeys;
+  mpl=new mergepricelist(2 of 2);
+  mpl[1]<<monkeys;
+  mpl[1]>>prices;
+  mp=new maxprice(2 of 2);
+  mp[1]<<prices;
+  mp[1]>>seq>>price;
+  this[2]<<seq<<price;
 ) // }}}
 |
 // Process data and print result
 local Process($list(String)(2 of 1 pure,2) lines) // {{{
-( lines[1]<<^pop;
-  lines[1]>>
-  {^nil:
-    debug("No patterns line");
-   ^cons:
-    lines[1]>>patstr>>tests;
-    pats=new parsepatterns(2 of 2);
-    pats[1]<<patstr;
-    tp=new testpatterns(2 of 2);
-    tp[1]<<pats<<tests;
-    tp[1]>>count;
-    c=new console(2 of 2);
-    c[1]<<^str<<"Accepted patterns: "<<^int<<count<<^nl<<^end;
-  }
+( local Convert($list(String)(2 of 1 pure,2) lines, $list(Int)(2 of 1 pure,2) vals) // {{{
+  ( lines[1]<<^pop;
+    lines[1]>>
+    {^nil:
+      bs=new bestsequence(2 of 2);
+      bs[1]<<vals;
+      bs[1]>>seq>>price;
+      c=new console(2 of 2);
+      c[1]<<^str<<"Best change sequence is: "<<^int<<seq<<^str<<" selling "<<^int<<price<<^str<<" bananas."<<^nl<<^end;
+     ^cons:
+      lines[1]>>str>>ltail;
+      Int val=0;
+      STRING2INT(str,val);
+      vals[1]<<^cons<<val;
+      Convert(ltail,vals);
+    }
+  ) // }}}
+  vals=new list(2 of 2);
+  vals<<Int;
+  Convert(lines,vals);
 ) // }}}
 // Parse file, handle errors and call Process with parsed structure
 local ProcessFile($infile(2 of 1,2) fin) // {{{
@@ -196,7 +283,7 @@ local ProcessFile($infile(2 of 1,2) fin) // {{{
     fin[1]>>
     {^Some:
       fin[1]>>line;
-      if line&^length<=1
+      if line&^length<=0
       then ProcessFile2(fin,lines);
       else lines[1]<<^cons<<line;
            ProcessFile2(fin,lines);

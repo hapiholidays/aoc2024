@@ -7,6 +7,7 @@
    ^set: 2->1: _from; 2->1: _to; $map; \
    ^member: 2->1: _from; 1->2: Bool; $map; \
    ^lookup: 2->1: _from; 1->2 {^nil: $map; ^val: 1->2: _to; $map; } \
+   ^popleast: 1->2 {^nil: $map; ^val: 1->2: _to; $map; } \
    ^size: 1->2: Int; $map; \
    ^height: 1->2: Int; $map; \
    ^pop: \
@@ -255,6 +256,30 @@ local pure service MapService(map (1 of 2) s) // {{{
                       this[2]<<^val<<t;
                       Map(this,from,to,left,right,height,cmp);
                     }
+        ^popleast:
+         left[1]<<^popleast;
+         left[1]>>
+         {^val:
+           left[1]>>v;
+           this[2]<<^val;
+           this[2]<<v;    
+           Balance(this,from,to,left,right,cmp);
+          ^nil:
+           right[1]<<^popleast;
+           right[1]>>
+           {^val:
+             right[1]>>v;
+             this[2]<<^val;
+             this[2]<<v;    
+             left=new map(2 of 2);
+             left<<#from;
+             left<<#to;
+             left[1]<<cmp;
+             Balance(this,from,to,left,right,cmp);
+            ^nil:
+             this[2]<<^nil;
+           }
+         }
         ^size:
           left[1]<<^size;
           left[1]>>ls;
@@ -315,6 +340,8 @@ local pure service MapService(map (1 of 2) s) // {{{
       this[2]>>q;
       this[2]<<^nil;
       NilMap(this);
+     ^popleast:
+      this[2]<<^nil;
      ^size:
       this[2]<<0;
       NilMap(this);

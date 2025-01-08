@@ -1,0 +1,430 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include <struct/set.pi>
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "map.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $mixres \
+  1->2:Int; \
+  $end;
+#define $mix \
+  2->1:Int; \
+  2->1:Int; \
+  $mixres
+global $mix mix(1 pure,2);
+local pure service Service(mix (1 of 2) this) // {{{
+( local pure Xor($mixres(1 of 1 pure,2) this, Int a1, Int a2, Int acc, Int digit) // {{{
+  ( if (a1<=0) and (a2<=0)
+    then this[2]<<acc;
+    else Bool b1=not (a1=(a1/2)*2);
+         Bool b2=not (a2=(a2/2)*2);
+         if (b1 and not b2) or (b2 and not b1)
+         then Xor(this,a1/2,a2/2,acc+digit,digit*2);
+         else Xor(this,a1/2,a2/2,acc,digit*2);
+  ) // }}}
+  this[2]>>a1>>a2;
+  Xor(this,a1,a2,0,1);
+) // }}}
+|
+#define $nextres \
+  1->2:Int; \
+  $end;
+#define $next \
+  2->1:Int; \
+  $nextres
+global $next next(1 pure,2);
+local pure service Service(next (1 of 2) this) // {{{
+( this[2]>>v;
+  m=new mix(2 of 2);
+  m[1]<<v<<v*64;
+  m[1]>>v2;
+  Int v3=v2-(v2/16777216)*16777216;
+  m2=new mix(2 of 2);
+  m2[1]<<v3<<v3/32;
+  m2[1]>>v4;
+  Int v5=v4-(v4/16777216)*16777216;
+  m3=new mix(2 of 2);
+  m3[1]<<v5<<v5*2048;
+  m3[1]>>v6;
+  Int v7=v6-(v6/16777216)*16777216;
+  this[2]<<v7;
+  //c=new console(2 of 2);
+  //c[1]<<^str<<"Next debug: "<<^int<<v<<^str<<"->"<<^int<<v2<<^str<<"->"<<^int<<v3<<^str<<"->"<<^int<<v3<<^str<<"->"<<^int<<v4<<^str<<"->"<<^int<<v5<<^str<<"->"<<^int<<v6<<^str<<"->"<<^int<<v7<<^nl<<^end;
+) // }}}
+|
+#define $sequencepriceres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  $end;
+#define $sequenceprice \
+  2->1:Int; \
+  $sequencepriceres
+global $sequenceprice sequenceprice(1 pure,2);
+local pure service Service(sequenceprice (1 of 2) this) // {{{
+( local pure Prices($sequencepriceres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) prices, Int v, Int cp, Int cpp, Int cppp, Int iterations) // {{{
+  ( if iterations<=0
+    then this[2]<<prices;
+    else n=new next(2 of 2);
+         n[1]<<v;
+         n[1]>>nv;
+         Int cost=v-(v/10)*10;
+         Int costn=nv-(nv/10)*10;
+         Int seq=(9+cppp)+(9+cpp)*100+(9+cp)*100*100+(9+costn-cost)*100*100*100;
+         prices[1]<<^member<<seq;
+         prices[1]>>member;
+         if member
+         then Prices(this,prices,nv,costn-cost,cp,cpp,iterations-1);
+         else prices[1]<<^set<<seq<<costn;
+              c=new console(2 of 2);
+              c[1]<<^str<<"Price of "<<^int<<seq<<^str<<" is "<<^int<<costn<<^nl<<^end;
+              Prices(this,prices,nv,costn-cost,cp,cpp,iterations-1);
+  ) // }}}
+  this[2]>>val;
+  Int cost=val-(val/10)*10;
+  n=new next(2 of 2);
+  n[1]<<val;
+  n[1]>>nval;
+  Int ncost=nval-(nval/10)*10;
+  n=new next(2 of 2);
+  n[1]<<nval;
+  n[1]>>nnval;
+  Int nncost=nnval-(nnval/10)*10;
+  n=new next(2 of 2);
+  n[1]<<nnval;
+  n[1]>>nnnval;
+  Int nnncost=nnnval-(nnnval/10)*10;
+  prices=new map(2 of 2);
+  prices<<Int;
+  prices<<Int;
+  prices[1]<<stdorder_Int;
+  Prices(this,prices,nnnval,nnncost-nncost,nncost-ncost,ncost-cost,2000-3);
+) // }}}
+|
+#define $mergepricesres \
+  1->2:$map(Int,Int)(2 of 1 pure,2); \
+  $end;
+#define $mergeprices \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  $mergepricesres
+global $mergeprices mergeprices(1 pure,2);
+local pure service Service(mergeprices (1 of 2) this) // {{{
+( this[2]>>ps1>>ps2;
+  ps1[1]<<^pop;
+  ps1[1]>>
+  {^nil: this[2]<<ps2;
+   ^tree:
+    this[2]>>seq<<price>>ps11>>ps12;
+    mp1=new mergeprices(2 of 2);
+    mp1[1]<<ps11<<ps2;
+    mp1[1]>>ps2;
+    mp2=new mergeprices(2 of 2);
+    mp2[1]<<ps12<<ps2;
+    mp2[1]>>ps2;
+    ps2[1]<<^lookup<<seq;
+    ps2[1]>>
+    {^nil:
+      ps2[1]<<^set<<seq<<price;
+      this[2]<<ps2;
+     ^val:
+      ps2[1]>>price2;
+      ps2[1]<<^set<<seq<<price2+price;
+      this[2]<<ps2;
+    }
+  }
+) // }}}
+|
+#define $maxpriceres \
+  1->2:Int; \
+  1->2:Int; \
+  $end;
+#define $maxprice \
+  2->1:$map(Int,Int)(2 of 1 pure,2); \
+  $maxpriceres
+global $maxprice maxprice(1 pure,2);
+local pure service Service(maxprice (1 of 2) this) // {{{
+( this[2]>>ps;
+  ps[1]<<^pop;
+  ps[1]>>
+  {^nil: this[2]<<0<<0;
+   ^tree:
+    this[2]>>seq<<price>>ps1>>ps2;
+    mp1=new maxprice(2 of 2);
+    mp1[1]<<ps1;
+    mp1[1]>>s1>>p1;
+    mp2=new maxprice(2 of 2);
+    mp2[1]<<ps2;
+    mp2[1]>>s2>>p2;
+    if (p1<=price) and (p2<=price)
+    then this[2]<<seq<<price;
+    else if (price<=p1) and (p2<=p1)
+    then this[2]<<s1<<p1;
+    else this[2]<<s2<<p2;
+  }
+) // }}}
+|
+#define $fourchangesres \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+#define $fourchanges \
+  2->1:Int; \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  $fourchangesres
+global $fourchanges fourchanges(1 pure,2);
+local pure service Service(fourchanges (1 of 2) this) // {{{
+( local pure FourChanges($fourchangesres(1 of 1 pure,2) this, $set(Int)(2 of 1 pure,2) chs, Int v, Int cp, Int cpp, Int cppp, Int iterations) // {{{
+  ( if iterations<=0
+    then this[2]<<chs;
+    else n=new next(2 of 2);
+         n[1]<<v;
+         n[1]>>nv;
+         Int cost=v-(v/10)*10;
+         Int costn=nv-(nv/10)*10;
+         chs[1]<<^insert<<(9+cppp)+(9+cpp)*100+(9+cp)*100*100+(9+costn-cost)*100*100*100;
+         FourChanges(this,chs,nv,costn-cost,cp,cpp,iterations-1);
+  ) // }}}
+  this[2]>>val>>chs;
+  Int cost=val-(val/10)*10;
+  n=new next(2 of 2);
+  n[1]<<val;
+  n[1]>>nval;
+  Int ncost=nval-(nval/10)*10;
+  n=new next(2 of 2);
+  n[1]<<nval;
+  n[1]>>nnval;
+  Int nncost=nnval-(nnval/10)*10;
+  n=new next(2 of 2);
+  n[1]<<nnval;
+  n[1]>>nnnval;
+  Int nnncost=nnnval-(nnnval/10)*10;
+  FourChanges(this,chs,nnnval,nnncost-nncost,nncost-ncost,ncost-cost,2000-3);
+) // }}}
+|
+#define $allchangesres \
+  1->2:$set(Int)(2 of 1 pure,2); \
+  $end;
+#define $allchanges \
+  2->1:$list(Int)(2 of 1 pure,2); \
+  2->1:$set(Int)(2 of 1 pure,2); \
+  $allchangesres
+global $allchanges allchanges(1 pure,2);
+local pure service Service(allchanges (1 of 2) this) // {{{
+( this[2]>>vals>>chs;
+  vals[1]<<^pop;
+  vals[1]>>
+  {^nil:
+    this[2]<<chs;
+   ^cons:
+    vals[1]>>val>>vtail;
+    fc=new fourchanges(2 of 2);
+    fc[1]<<val<<chs;
+    fc[1]>>chs;
+    ac=new allchanges(2 of 2);
+    ac[1]<<vtail<<chs;
+    ac[1]>>chs;
+    this[2]<<chs;
+  }
+) // }}}
+|
+#define $bananasres \
+  1->2:Int; /*bananas*/\
+  $end;
+#define $bananas \
+  2->1:Int; /*change1*/\
+  2->1:Int; /*change2*/\
+  2->1:Int; /*change3*/\
+  2->1:Int; /*change4*/\
+  2->1:Int; /*val*/\
+  $bananasres
+global $bananas bananas(1 pure,2);
+local pure service Service(bananas (1 of 2) this) // {{{
+( this[2]>>change1>>change2>>change3>>change4;
+  local pure Bananas($bananasres(1 of 1 pure,2) this, Int val, Int cp, Int cpp, Int cppp, Int iterations) // {{{
+  ( if iterations<=0
+    then this[2]<<0;
+    else n=new next(2 of 2);
+         n[1]<<val;
+         n[1]>>nval;
+         Int valcost=val-(val/10)*10;
+         Int nvalcost=nval-(nval/10)*10;
+         Int c=nvalcost-valcost;
+         if (cppp=change1) and (cpp=change2) and (cp=change3) and (c=change4)
+         then this[2]<<nvalcost;
+         else Bananas(this,nval,c,cp,cpp,iterations-1);
+  ) // }}}
+  this[2]>>val;
+  Int cost=val-(val/10)*10;
+  n1=new next(2 of 2);
+  n1[1]<<val;
+  n1[1]>>nval;
+  Int ncost=nval-(nval/10)*10;
+  Int c1=ncost-cost;
+  n2=new next(2 of 2);
+  n2[1]<<nval;
+  n2[1]>>nnval;
+  Int nncost=nnval-(nnval/10)*10;
+  Int c2=nncost-ncost;
+  n3=new next(2 of 2);
+  n3[1]<<nnval;
+  n3[1]>>nnnval;
+  Int nnncost=nnnval-(nnnval/10)*10;
+  Int c3=nnncost-nncost;
+  Bananas(this,nnnval,c3,c2,c1,2000-3);
+) // }}}
+|
+#define $trychangeres \
+  1->2:Int; /*bananas*/\
+  $end;
+#define $trychange \
+  2->1:Int; /*change*/\
+  2->1:$list(Int)(2 of 1 pure,2); /*vals*/\
+  $trychangeres
+global $trychange trychange(1 pure,2);
+local pure service Service(trychange (1 of 2) this) // {{{
+( this[2]>>change>>vals;
+  vals[1]<<^pop;
+  vals[1]>>
+  {^nil:
+    this[2]<<0;
+   ^cons:
+    vals[1]>>val>>vtail;
+    s=new bananas(2 of 2);
+    Int c1=(change-(change/100)*100)-9;
+    Int c2=(change/100-(change/10000)*100)-9;
+    Int c3=(change/10000-(change/1000000)*100)-9;
+    Int c4=change/1000000-9;
+    s[1]<<c1<<c2<<c3<<c4<<val;
+    s[1]>>b1;
+    tc=new trychange(2 of 2);
+    tc[1]<<change<<vtail;
+    tc[1]>>b2;
+    this[2]<<b1+b2;
+  }
+) // }}}
+|
+#define $trychangesres \
+  1->2:Int; /*change*/\
+  1->2:Int; /*bananas*/\
+  $end;
+#define $trychanges \
+  2->1:$list(Int)(2 of 1 pure,2); /*changes*/\
+  2->1:$list(Int)(2 of 1 pure,2); /*vals*/\
+  $trychangesres
+global $trychanges trychanges(1 pure,2);
+local pure service Service(trychanges (1 of 2) this) // {{{
+( this[2]>>changes>>vals;
+  changes[1]<<^pop;
+  changes[1]>>
+  {^nil:
+    vals[1]<<^end;
+    this[2]<<0<<0;
+   ^cons:
+    vals[1]<<^copy;
+    vals[1]>>valscopy;
+    changes[1]>>change>>ctail;
+    tc=new trychange(2 of 2);
+    tc[1]<<change<<vals;
+    tc[1]>>bs;
+    c=new console(2 of 2);
+    c[1]<<^str<<"TryChange("<<^int<<change<<^str<<") sells "<<^int<<bs<<^str<<" bananas."<<^nl<<^end;
+    tcs=new trychanges(2 of 2);
+    tcs[1]<<ctail<<valscopy;
+    tcs[1]>>bestchange>>maxbananas;
+    if maxbananas<=bs
+    then this[2]<<change<<bs;
+    else this[2]<<bestchange<<maxbananas;
+  }
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( local Convert($list(String)(2 of 1 pure,2) lines, $list(Int)(2 of 1 pure,2) vals) // {{{
+  ( lines[1]<<^pop;
+    lines[1]>>
+    {^nil:
+      vals[1]<<^copy;
+      vals[1]>>valscopy;
+      chs=new set(2 of 2);
+      chs<<Int;
+      chs[1]<<stdorder_Int;
+      ac=new allchanges(2 of 2);
+      ac[1]<<vals<<chs;
+      ac[1]>>chs;
+      changes = new set2list(2 of 2);
+      changes<<Int;
+      changes[1]<<chs;
+      rchanges=new revlist(2 of 2);
+      rchanges<<Int;
+      rchanges[1]<<changes;
+      rchanges[1]<<^length;
+      rchanges[1]>>countchanges;
+      c=new console(2 of 2);
+      c[1]<<^str<<"Number of changes to test: "<<^int<<countchanges<<^nl<<^end;
+      tc=new trychanges(2 of 2);
+      tc[1]<<rchanges<<valscopy;
+      tc[1]>>ch>>bs;
+      c=new console(2 of 2);
+      c[1]<<^str<<"Best change sequence is: "<<^int<<ch<<^str<<" selling "<<^int<<bs<<^str<<" bananas."<<^nl<<^end;
+     ^cons:
+      lines[1]>>str>>ltail;
+      Int val=0;
+      STRING2INT(str,val);
+      vals[1]<<^cons<<val;
+      Convert(ltail,vals);
+    }
+  ) // }}}
+  vals=new list(2 of 2);
+  vals<<Int;
+  Convert(lines,vals);
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      if line&^length<=0
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}
