@@ -7,7 +7,7 @@
    ^set: 2->1: _from; 2->1: _to; $map; \
    ^member: 2->1: _from; 1->2: Bool; $map; \
    ^lookup: 2->1: _from; 1->2 {^nil: $map; ^val: 1->2: _to; $map; } \
-   ^popleast: 1->2 {^nil: $map; ^val: 1->2: _to; $map; } \
+   ^popleast: 1->2 {^nil: $end; ^val: 1->2: _from; 1->2: _to; $map; } \
    ^size: 1->2: Int; $map; \
    ^height: 1->2: Int; $map; \
    ^pop: \
@@ -23,6 +23,9 @@
    ^copy: \
     1->2: $map;(2 of 1 pure,2); \
     $map; \
+   ^takeover: \
+    2->1: $map;(1 of 1 pure,2); \
+    $end; \
   }
 #define $absmap \
   2: #from; \
@@ -260,25 +263,13 @@ local pure service MapService(map (1 of 2) s) // {{{
          left[1]<<^popleast;
          left[1]>>
          {^val:
-           left[1]>>v;
-           this[2]<<^val;
-           this[2]<<v;    
+           left[1]>>l>>v;
+           this[2]<<^val<<l<<v;    
            Balance(this,from,to,left,right,cmp);
           ^nil:
-           right[1]<<^popleast;
-           right[1]>>
-           {^val:
-             right[1]>>v;
-             this[2]<<^val;
-             this[2]<<v;    
-             left=new map(2 of 2);
-             left<<#from;
-             left<<#to;
-             left[1]<<cmp;
-             Balance(this,from,to,left,right,cmp);
-            ^nil:
-             this[2]<<^nil;
-           }
+           this[2]<<^val<<from<<to;
+           right[1]<<^takeover<<this;
+           cmp[1]<<^end;
          }
         ^size:
           left[1]<<^size;
@@ -304,6 +295,9 @@ local pure service MapService(map (1 of 2) s) // {{{
           ( Map(s1,from,to,leftcpy,rightcpy,height,cmp2);
           | Map(this,from,to,left,right,height,cmp);
           )
+         ^takeover:
+          this[2]>>that;
+          Map(that,from,to,left,right,height,cmp);
       }
     ) // }}}
     this[2]>>
@@ -356,6 +350,9 @@ local pure service MapService(map (1 of 2) s) // {{{
       ( NilMap(s1);
       | NilMap(this);
       )
+     ^takeover:
+      this[2]>>that;
+      NilMap(that);
     }
   ) // }}}
   NilMap(s);

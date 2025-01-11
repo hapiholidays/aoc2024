@@ -53,8 +53,6 @@ local pure service Service(next (1 of 2) this) // {{{
   m3[1]>>v6;
   Int v7=v6-(v6/16777216)*16777216;
   this[2]<<v7;
-  //c=new console(2 of 2);
-  //c[1]<<^str<<"Next debug: "<<^int<<v<<^str<<"->"<<^int<<v2<<^str<<"->"<<^int<<v3<<^str<<"->"<<^int<<v3<<^str<<"->"<<^int<<v4<<^str<<"->"<<^int<<v5<<^str<<"->"<<^int<<v6<<^str<<"->"<<^int<<v7<<^nl<<^end;
 ) // }}}
 |
 #define $sequencepriceres \
@@ -79,8 +77,6 @@ local pure service Service(sequenceprice (1 of 2) this) // {{{
          if member
          then Prices(this,prices,nv,costn-cost,cp,cpp,iterations-1);
          else prices[1]<<^set<<seq<<costn;
-              //c=new console(2 of 2);
-              //c[1]<<^str<<"Price of "<<^int<<seq<<^str<<" is "<<^int<<costn<<^nl<<^end;
               Prices(this,prices,nv,costn-cost,cp,cpp,iterations-1);
   ) // }}}
   this[2]>>val;
@@ -177,12 +173,16 @@ local pure service Service(mergeprices (1 of 2) this) // {{{
 global $trimprices trimprices(1 pure,2);
 local pure service Service(trimprices (1 of 2) this) // {{{
 ( this[2]>>cap>>ps;
-  local pure TrimPrices($trimprices(1 of 1 pure,2) this, $map(Int,Int) ps, Int discard) // {{{
+  local pure TrimPrices($trimpricesres(1 of 1 pure,2) this, $map(Int,Int)(2 of 1 pure,2) ps, Int discard) // {{{
   ( if discard<=0
     then this[2]<<ps;
     else ps[1]<<^popleast;
          ps[1]>>
          {^nil:
+           ps=new map(2 of 2);
+           ps<<Int;
+           ps<<Int;
+           ps[1]<<stdorder_Int;
            this[2]<<ps;
           ^val:
            ps[1]>>a>>b;
@@ -191,7 +191,13 @@ local pure service Service(trimprices (1 of 2) this) // {{{
   ) // }}}
   ps[1]<<^size;
   ps[1]>>size;
-  TrimPrices(this,ps,size-cap);
+  if 1<=size-cap
+  then //c=new console(2 of 2);
+       //c[1]<<^str<<"Capping "<<^int<<size-cap<<^str<<" of "<<^int<<size<<^str<<" sequences"<<^nl<<^end;
+       TrimPrices(this,ps,size-cap);
+  else //c=new console(2 of 2);
+       //c[1]<<^str<<"Keeping all "<<^int<<size<<^str<<" sequences"<<^nl<<^end;
+       TrimPrices(this,ps,size-cap);
 ) // }}}
 |
 #define $mergepricelistres \
@@ -213,22 +219,22 @@ local pure service Service(mergepricelist (1 of 2) this) // {{{
     this[2]<<prices;
    ^cons:
     monkeys[1]>>monkey>>mtail;
+    mpl=new mergepricelist(2 of 2);
+    mpl[1]<<mtail;
+    mpl[1]>>prices2;
+    
     sp=new sequenceprice(2 of 2);
     sp[1]<<monkey;
     sp[1]>>prices1;
     prices1[1]<<^size;
     prices1[1]>>len;
-    c=new console(2 of 2);
-    c[1]<<^str<<"Number of sequences: "<<^int<<len<<^nl<<^end;
-    mpl=new mergepricelist(2 of 2);
-    mpl[1]<<mtail;
-    mpl[1]>>prices2;
+
     mp=new mergeprices(2 of 2);
     mp[1]<<prices1<<prices2;
     mp[1]>>prices;
 
     tp=new trimprices(2 of 2);
-    tp[1]<<100000<<prices;
+    tp[1]<<50000<<prices;
     tp[1]>>prices;
     this[2]<<prices;
   }
