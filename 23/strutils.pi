@@ -1,0 +1,46 @@
+#pragma once
+#define $strfind \
+  2->1: String; \
+  2->1: String; \
+  1->2: Int; \
+  $end;
+global $strfind strfind(1 pure,2);
+local pure service StrFindService(strfind (1 of 2) this) // {{{
+( this[2]>>data;
+  this[2]>>pat;
+  Int patlen=pat&^length;
+  if patlen<=0
+  then this[2]<<0;
+  else Int datalen=data&^length;
+       local pure StrFind(1->2:Int;$end;(1 of 1 pure,2) this, Int pos) // {{{
+       ( if datalen+1<=pos+patlen
+         then this[2]<<0-1;
+         else if (data%pos)/patlen=pat
+              then this[2]<<pos;
+              else StrFind(this,pos+1);
+       ) // }}}
+       StrFind(this,0);
+) // }}}
+|
+#define $strsplit \
+  2->1: String; \
+  2->1: String; \
+  $list(String)
+global $strsplit strsplit(1 pure,2);
+local pure service Service(strsplit (1 of 2) this) // {{{
+( this[2]>>data;
+  this[2]>>pat;
+  sf=new strfind(2 of 2);
+  sf[1]<<data<<pat;
+  sf[1]>>pos;
+  if 0<=pos
+  then rest=data%(pos+pat&^length);
+       res=new strsplit(2 of 2);
+       res[1]<<rest<<pat;
+       res[1]<<^cons<<data/pos<<^takeover<<this;
+  else res=new list(2 of 2);
+       res<<String;
+       res[1]<<^cons<<data;
+       res[1]<<^takeover<<this;
+) // }}}
+|

@@ -1,0 +1,246 @@
+#include <sys/args.pi>
+#include <sys/file.pi>
+#include <struct/list.pi>
+#include "map.pi"
+#include "set.pi"
+#include <console.pi>
+#include <convert.pi>
+#include "listutils.pi"
+#include "strutils.pi"
+
+#define debug(msg) c_dbg=new console(2 of 2); c_dbg[1]<<^str<<msg<<^nl<<^end
+
+#define $addconnection \
+  2->1: $map(String,String)(2 of 1 pure,2); \
+  2->1: String; \
+  2->1: String; \
+  $map(String,String)
+global $addconnection addconnection(1 pure,2);
+local pure service Service(addconnection (1 of 2) this) // {{{
+( this[2]>>links>>p1>>p2;
+  links[1]<<^lookup<<p1;
+  links[1]>>
+  {^nil:
+    links[1]<<^set<<p1<<p2;
+    links[1]<<^takeover<<this;
+   ^val:
+    links[1]>>ps;
+    links[1]<<^set<<p1<<ps+","+p2;
+    links[1]<<^takeover<<this;
+  }
+) // }}}
+|
+#define $parselinks \
+  2->1:$list(String)(2 of 1 pure,2); \
+  $map(String,String)
+global $parselinks parselinks(1 pure,2);
+local pure service Service(parselinks (1 of 2) this) // {{{
+( this[2]>>strs;
+  strs[1]<<^pop;
+  strs[1]>>
+  {^nil:
+    res=new map(2 of 2);
+    res<<String;
+    res<<String;
+    res[1]<<stdorder_String;
+    res[1]<<^takeover<<this;
+   ^cons:
+    strs[1]>>str>>tail;
+    res=new parselinks(2 of 2);
+    res[1]<<tail;
+    sf=new strfind(2 of 2);
+    sf[1]<<str<<"-";
+    sf[1]>>pos;
+    if 0<=pos
+    then p1=str/pos;
+         p2=str%(pos+1);
+         res2=new addconnection(2 of 2);
+         res2[1]<<res<<p1<<p2;
+         res3=new addconnection(2 of 2);
+         res3[1]<<res2<<p2<<p1;
+         res3[1]<<^takeover<<this;
+    else HOST("cout << \"Unable to parse link\" << endl;") pure;
+         res[1]<<^takeover<<this;
+  }
+) // }}}
+|
+#define $checklinkres \
+  1->2:Bool; \
+  $end;
+#define $checklink \
+  2->1:$map(String,String)(2 of 1 pure,2); \
+  2->1:String; \
+  2->1:String; \
+  1->2:$map(String,String)(2 of 1 pure,2); \
+  $checklinkres
+global $checklink checklink(1 pure,2);
+local pure service Service(checklink (1 of 2) this) // {{{
+( this[2]>>links>>p1>>p2;
+  links[1]<<^lookup<<p1;
+  links[1]>>
+  {^nil:
+    this[2]<<links<<false;
+   ^val:
+    local pure FindP2($checklinkres(1 of 1 pure,2) this, $list(String)(2 of 1 pure,2) plist) // {{{
+    ( plist[1]<<^pop;
+      plist[1]>>
+      {^nil:
+        this[2]<<false;
+       ^cons:
+        plist[1]>>p>>ptail;
+        if p=p2
+        then this[2]<<true;
+             ptail[1]<<^end;
+        else FindP2(this,ptail);
+      }
+    ) // }}}
+    links[1]>>ps;
+    this[2]<<links;
+    plist=new strsplit(2 of 2);
+    plist[1]<<ps<<",";
+    FindP2(this,plist);
+  }
+) // }}}
+|
+#define $joinstr \
+ 2->1:String; \
+ 2->1:String; \
+ 1->2:String; \
+ $end;
+global $joinstr joinstr(1 pure,2);
+local pure service Service(joinstr (1 of 2) this) // {{{
+( this[2]>>a>>b;
+  this[2]<<a+","+b;
+) // }}}
+|
+#define $find3groupsres \
+  1->2:$set(String)(2 of 1 pure,2); \
+  $end;
+#define $find3groups \
+  2->1:$map(String,String)(2 of 1 pure,2); \
+  $find3groupsres
+global $find3groups find3groups(1 pure,2);
+local pure service Service(find3groups (1 of 2) this) // {{{
+( this[2]>>links;
+  links[1]<<^popleast;
+  links[1]>>
+  {^nil:
+    res=new set(2 of 2);
+    res<<String;
+    res[1]<<stdorder_String;
+    this[2]<<res;
+   ^val:
+    links[1]>>p1;
+    local pure CheckGroups($find3groupsres(1 of 1 pure,2) this, $list(String)(2 of 1 pure,2) p23s, $map(String,String)(2 of 1 pure,2) links, $set(String)(2 of 1 pure,2) groups) // {{{
+    ( p23s[1]<<^pop;
+      p23s[1]>>
+      {^nil:
+        fg=new find3groups(2 of 2);
+        fg[1]<<links;
+        fg[1]>>groups2;
+        us=new unionset(2 of 2);
+        us<<String;
+        us[1]<<groups<<groups2;
+        us[1]>>allgroups;
+        this[2]<<allgroups;
+       ^cons:
+        p23s[1]>>p23>>p23tail;
+        sf=new strfind(2 of 2);
+        sf[1]<<p23<<",";
+        sf[1]>>pos;
+        String p2=p23/pos;
+        String p3=p23%(pos+1);
+        //c=new console(2 of 2);
+        //c[1]<<^str<<"Potential group: "+p1+","+p2+","+p3<<^nl<<^end;
+        if (p1<=p2) and (p2<=p3)
+        then cl=new checklink(2 of 2);
+             cl[1]<<links<<p3<<p2;
+             cl[1]>>links>>con;
+             if con and ((p1&0="t"&0) or (p2&0="t"&0) or (p3&0="t"&0))
+             then groups[1]<<^insert<<p1+","+p2+","+p3; CheckGroups(this,p23tail,links,groups);
+             else CheckGroups(this,p23tail,links,groups);
+        else if (p1<=p3) and (p3<=p2)
+        then cl=new checklink(2 of 2);
+             cl[1]<<links<<p2<<p3;
+             cl[1]>>links>>con;
+             if con and ((p1&0="t"&0) or (p2&0="t"&0) or (p3&0="t"&0))
+             then groups[1]<<^insert<<p1+","+p3+","+p2; CheckGroups(this,p23tail,links,groups);
+             else CheckGroups(this,p23tail,links,groups);
+        else CheckGroups(this,p23tail,links,groups);
+      }
+    ) // }}}
+    links[1]>>p2s;
+    //c=new console(2 of 2);
+    //c[1]<<^str<<"Map: "<<^str<<p1<<^str<<"->"<<^str<<p2s<<^nl<<^end;
+    p2list=new strsplit(2 of 2);
+    p2list[1]<<p2s<<",";
+    p23s=new ntuples(2 of 2);
+    p23s<<String;
+    p23s[1]<<joinstr<<2<<p2list;
+    groups=new set(2 of 2);
+    groups<<String;
+    groups[1]<<stdorder_String;
+    CheckGroups(this,p23s,links,groups);
+  }
+) // }}}
+|
+// Process data and print result
+local Process($list(String)(2 of 1 pure,2) lines) // {{{
+( links=new parselinks(2 of 2);
+  links[1]<<lines;
+  fg=new find3groups(2 of 2);
+  fg[1]<<links;
+  fg[1]>>groups;
+  groups[1]<<^size;
+  groups[1]>>count;
+  c=new console(2 of 2);
+  c[1]<<^str<<"Number of groups: "<<^int<<count<<^nl<<^end;
+  groups[1]<<^end;
+) // }}}
+// Parse file, handle errors and call Process with parsed structure
+local ProcessFile($infile(2 of 1,2) fin) // {{{
+( local ProcessFile2($infile(2 of 1,2) fin, $list(String)(2 of 1 pure,2) lines) // {{{
+  ( fin[1]<<^Line;
+    fin[1]>>
+    {^Some:
+      fin[1]>>line;
+      if line&^length<=1
+      then ProcessFile2(fin,lines);
+      else lines[1]<<^cons<<line;
+           ProcessFile2(fin,lines);
+     ^None:
+      rlines=new revlist(2 of 2);
+      rlines<<String;
+      rlines[1]<<lines;
+      Process(rlines);
+    }
+  ) // }}}
+  lines=new list(2 of 2);
+  lines<<String;
+  ProcessFile2(fin,lines);
+) // }}}
+// Open file, handle errors and call ProcessFile with filehandle in case of success
+local ProcessFilename(String fname) // {{{
+( f=new file(2 of 2);
+  f[1]<<^Read<<fname;
+  f[1]>>
+  {^OK:
+    ProcessFile(f);
+   ^Error:
+    f[1]>>err;
+    c=new console(2 of 2);
+    c[1]<<^str<<"Unable to open input file: " << ^str << err << ^nl << ^end;
+  }
+) // }}}
+// Actual program
+arguments = new args(2 of 2);
+arguments[1]<<^arg<<1;
+arguments[1]>>
+{^none:
+  arguments[1]<<^end;
+  ProcessFilename("input");
+ ^some:
+  arguments[1]>>fname;
+  arguments[1]<<^end;
+  ProcessFilename(fname);
+}

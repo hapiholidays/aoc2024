@@ -1,0 +1,360 @@
+#pragma once
+#include<order.pi>
+#define $map(_from,_to) \
+  rec $map; \
+  2->1 \
+  {^end: $end; \
+   ^assign: 2->1: _from; 2->1: _to; 2->1: $map;(2 of 1 pure,2); 2->1: $map;(2 of 1 pure,2); $map; \
+   ^set: 2->1: _from; 2->1: _to; $map; \
+   ^member: 2->1: _from; 1->2: Bool; $map; \
+   ^lookup: 2->1: _from; 1->2 {^nil: $map; ^val: 1->2: _to; $map; } \
+   ^popleast: 1->2 {^nil: $end; ^val: 1->2: _from; 1->2: _to; $map; } \
+   ^size: 1->2: Int; $map; \
+   ^height: 1->2: Int; $map; \
+   ^pop: \
+    1->2 \
+    {^nil: $end; \
+     ^tree: \
+      1->2: _from; \
+      1->2: _to; \
+      1->2: $map;(2 of 1 pure, 2); \
+      1->2: $map;(2 of 1 pure, 2); \
+      $end; \
+    } \
+   ^copy: \
+    1->2: $map;(2 of 1 pure,2); \
+    $map; \
+   ^takeover: \
+    2->1: $map;(1 of 1 pure,2); \
+    $end; \
+  }
+#define $absmap \
+  2: #from; \
+  2: #to; \
+  2->1: $order(#from)(1 pure, 2); \
+  $map(#from,#to)
+
+global $absmap map(1 pure, 2);
+local pure service MapService(map (1 of 2) s) // {{{
+( s>>#from;
+  s>>#to;
+  s[2]>>chcmp;
+  local pure NilMap($map(#from,#to)(1 of 1 pure,2) this) // {{{
+  ( local pure Map($map(#from,#to)(1 of 1 pure, 2) this, #from from, #to to, $map(#from,#to)(2 of 1 pure, 2) left, $map(#from,#to)(2 of 1 pure, 2) right, Int height, $order(#from)(2 of 1 pure,2) cmp) // {{{
+    ( local pure RotateLeft($map(#from,#to)(1 of 1 pure, 2) this, #from from, #to to, $map(#from,#to)(2 of 1 pure, 2) left, $map(#from,#to)(2 of 1 pure, 2) right, $order(#from)(2 of 1 pure,2) cmp) // {{{
+      ( right[1]<<^pop;
+        right[1]>>
+        {^nil:
+          // Cannot rotete
+          right=new map(2 of 2);
+          right<<#from;
+          right<<#to;
+          right[1]<<chcmp;
+          left[1]<<^height;
+          left[1]>>lh;
+          Map(this,from,to,left,right,1+lh,cmp);
+         ^tree:
+          right[1]>>rfrom>>rto>>rLeft>>rRight;
+          s=new map(2 of 2);
+          s<<#from;
+          s<<#to;
+          s[1]<<chcmp;
+          s[1]<<^assign<<from<<to<<left<<rLeft;
+          s[1]<<^height;
+          s[1]>>lh;
+          rRight[1]<<^height;
+          rRight[1]>>rh;
+          Map(this,rfrom,rto,s,rRight,if lh<=rh then 1+rh else 1+lh,cmp);
+        }
+      ) // }}}
+      local pure RotateRight($map(#from,#to)(1 of 1 pure, 2) this, #from from, #to to, $map(#from,#to)(2 of 1 pure, 2) left, $map(#from,#to)(2 of 1 pure, 2) right, $order(#from)(2 of 1 pure,2) cmp) // {{{
+      ( left[1]<<^pop;
+        left[1]>>
+        {^nil:
+          // Cannot rotate
+          left=new map(2 of 2);
+          left<<#from;
+          left<<#to;
+          left[1]<<chcmp;
+          right[1]<<^height;
+          right[1]>>rh;
+          Map(this,from,to,left,right,1+rh,cmp);
+         ^tree:
+          left[1]>>lFrom>>lTo;
+          left[1]>>lLeft;
+          left[1]>>lRight;
+          s=new map(2 of 2);
+          s<<#from;
+          s<<#to;
+          s[1]<<chcmp;
+          s[1]<<^assign<<from<<to<<lRight<<right;
+          lLeft[1]<<^height;
+          lLeft[1]>>lh;
+          s[1]<<^height;
+          s[1]>>rh;
+          Map(this,lFrom,lTo,lLeft,s,if lh<=rh then rh+1 else lh+1,cmp);
+        }
+      ) // }}}
+      local pure Balance($map(#from,#to)(1 of 1 pure, 2) this, #from from, #to to, $map(#from,#to)(2 of 1 pure, 2) left, $map(#from,#to)(2 of 1 pure, 2) right, $order(#from)(2 of 1 pure,2) cmp) // {{{
+      ( left[1]<<^pop;
+        left[1]>>
+        {^nil:
+          left=new map(2 of 2);
+          left<<#from;
+          left<<#to;
+          left[1]<<chcmp;
+          right[1]<<^pop;
+          right[1]>>
+          {^nil:
+            right=new map(2 of 2);
+            right<<#from;
+            right<<#to;
+            right[1]<<chcmp;
+            Map(this,from,to,left,right,1,cmp);
+           ^tree:
+            right[1]>>rFrom>>rTo;
+            right[1]>>rLeft;
+            right[1]>>rRight;
+            s=new map(2 of 2);
+            s<<#from;
+            s<<#to;
+            s[1]<<chcmp;
+            s[1]<<^assign<<from<<to<<left<<rLeft;
+            s[1]<<^height;
+            s[1]>>lh;
+            rRight[1]<<^height;
+            rRight[1]>>rh;
+            Map(this,rFrom,rTo,s,rRight,if lh<=rh then rh+1 else lh+1,cmp);
+          }
+         ^tree:
+          left[1]>>lFrom>>lTo>>lLeft>>lRight;
+          right[1]<<^pop;
+          right[1]>>
+          {^nil:
+            right=new map(2 of 2);
+            right<<#from;
+            right<<#to;
+            right[1]<<chcmp;
+            s=new map(2 of 2);
+            s<<#from;
+            s<<#to;
+            s[1]<<chcmp;
+            s[1]<<^assign<<from<<to<<lRight<<right;
+            lLeft[1]<<^height;
+            lLeft[1]>>lh;
+            s[1]<<^height;
+            s[1]>>rh;
+            Map(this,lFrom,lTo,lLeft,s,if lh<=rh then rh+1 else lh+1,cmp);
+           ^tree:
+            right[1]>>rFrom>>rTo>>rLeft>>rRight;
+            lLeft[1]<<^height;
+            lLeft[1]>>hll;
+            lRight[1]<<^height;
+            lRight[1]>>hlr;
+            rLeft[1]<<^height;
+            rLeft[1]>>hrl;
+            rRight[1]<<^height;
+            rRight[1]>>hrr;
+            hl=if hll<=hlr then hlr else hll;
+            hr=if hrl<=hrr then hrr else hrl;
+            s1=new map(2 of 2);
+            s1<<#from;
+            s1<<#to;
+            s1[1]<<chcmp;
+            s2=new map(2 of 2);
+            s2<<#from;
+            s2<<#to;
+            s2[1]<<chcmp;
+            if (hll+1<=hlr) and (2+hr<=hl)
+            then s1[1]<<^assign<<lFrom<<lTo<<lLeft<<lRight;
+                 s2[1]<<^assign<<rFrom<<rTo<<rLeft<<rRight;
+                 RotateRight(this,from,to,s1,s2,cmp);
+            else if 2+hr<=hl
+            then s1[1]<<^assign<<lFrom<<lTo<<lLeft<<lRight;
+                 s2[1]<<^assign<<rFrom<<rTo<<rLeft<<rRight;
+                 RotateRight(this,from,to,s1,s2,cmp);
+            else if (hrr+1<=hrl) and (hl+2<=hr)
+            then s1[1]<<^assign<<lFrom<<lTo<<lLeft<<lRight;
+                 s2[1]<<^assign<<rFrom<<rTo<<rLeft<<rRight;
+                 RotateLeft(this,from,to,s1,s2,cmp);
+            else if hl+2<=hr
+            then s1[1]<<^assign<<lFrom<<lTo<<lLeft<<lRight;
+                 s2[1]<<^assign<<rFrom<<rTo<<rLeft<<rRight;
+                 RotateLeft(this,from,to,s1,s2,cmp);
+            else s1[1]<<^assign<<lFrom<<lTo<<lLeft<<lRight;
+                 s2[1]<<^assign<<rFrom<<rTo<<rLeft<<rRight;
+                 Map(this,from,to,s1,s2,if hl<=hr then hr+1 else hl+1,cmp);
+          }
+        }
+      ) // }}}
+      this[2]>>
+      { ^end:
+          left[1]<<^end;
+          right[1]<<^end;
+          cmp[1]<<^end;
+        ^assign:
+          this[2]>>f>>t>>l>>r;
+          left[1]<<^end;
+          right[1]<<^end;
+          l[1]<<^height;
+          l[1]>>hl;
+          r[1]<<^height;
+          r[1]>>hr;
+          Map(this,f,t,l,r,if hr<=hl then 1+hl else 1+hr,cmp);
+        ^set:
+          this[2]>>f>>t;
+          cmp[1]<<^eq<<f<<from;
+          cmp[1]>>eq;
+          if eq
+          then Map(this,from,t,left,right,height,cmp);
+          else cmp[1]<<^leq<<f<<from;
+               cmp[1]>>leq;
+               if leq
+               then left[1]<<^set<<f<<t; Balance(this,from,to,left,right,cmp);
+               else right[1]<<^set<<f<<t; Balance(this,from,to,left,right,cmp);
+        ^member:
+          this[2]>>f;
+          cmp[1]<<^eq<<f<<from;
+          cmp[1]>>eq;
+          if eq
+          then this[2]<<true;
+               Map(this,from,to,left,right,height,cmp);
+          else cmp[1]<<^leq<<f<<from;
+               cmp[1]>>leq;
+               if leq
+               then left[1]<<^member<<f;
+                    left[1]>>r;
+                    this[2]<<r;
+                    Map(this,from,to,left,right,height,cmp);
+               else right[1]<<^member<<f;
+                    right[1]>>r;
+                    this[2]<<r;
+                    Map(this,from,to,left,right,height,cmp);
+        ^lookup:
+          this[2]>>f;
+          cmp[1]<<^eq<<f<<from;
+          cmp[1]>>eq;
+          if eq
+          then this[2]<<^val<<to;
+               Map(this,from,to,left,right,height,cmp);
+          else cmp[1]<<^leq<<f<<from;
+               cmp[1]>>leq;
+               if leq
+               then left[1]<<^lookup<<f;
+                    left[1]>>
+                    {^nil:
+                      this[2]<<^nil;
+                      Map(this,from,to,left,right,height,cmp);
+                     ^val:
+                      left[1]>>t;
+                      this[2]<<^val<<t;
+                      Map(this,from,to,left,right,height,cmp);
+                    }
+               else right[1]<<^lookup<<f;
+                    right[1]>>
+                    {^nil:
+                      this[2]<<^nil;
+                      Map(this,from,to,left,right,height,cmp);
+                     ^val:
+                      right[1]>>t;
+                      this[2]<<^val<<t;
+                      Map(this,from,to,left,right,height,cmp);
+                    }
+        ^popleast:
+         left[1]<<^popleast;
+         left[1]>>
+         {^val:
+           left[1]>>l>>v;
+           this[2]<<^val<<l<<v;    
+           Balance(this,from,to,left,right,cmp);
+          ^nil:
+           this[2]<<^val<<from<<to;
+           right[1]<<^takeover<<this;
+           cmp[1]<<^end;
+         }
+        ^size:
+          left[1]<<^size;
+          left[1]>>ls;
+          right[1]<<^size;
+          right[1]>>rs;
+          this[2]<<1+ls+rs;
+          Map(this,from,to,left,right,height,cmp);
+        ^height:
+          this[2]<<height;
+          Map(this,from,to,left,right,height,cmp);
+        ^pop:
+          this[2]<<^tree<<from<<to<<left<<right;
+          cmp[1]<<^end;
+         ^copy:
+          $map(#from,#to) s1,s2(1 pure,2);
+          left[1]<<^copy;
+          left[1]>>leftcpy;
+          right[1]<<^copy;
+          right[1]>>rightcpy;
+          cmp2=new chcmp(2 of 2);
+          this[2]<<s2;
+          ( Map(s1,from,to,leftcpy,rightcpy,height,cmp2);
+          | Map(this,from,to,left,right,height,cmp);
+          )
+         ^takeover:
+          this[2]>>that;
+          Map(that,from,to,left,right,height,cmp);
+      }
+    ) // }}}
+    this[2]>>
+    {^end:
+     ^assign:
+      this[2]>>f;
+      this[2]>>t;
+      this[2]>>l;
+      this[2]>>r;
+      l[1]<<^height;
+      l[1]>>lh;
+      r[1]<<^height;
+      r[1]>>rh;
+      cmp=new chcmp(2 of 2);
+      Map(this,f,t,l,r,if lh<=rh then 1+rh else 1+lh,cmp);
+     ^set:
+      lft=new map(2 of 2);
+      lft<<#from;
+      lft<<#to;
+      lft[1]<<chcmp;
+      rgt=new map(2 of 2);
+      rgt<<#from;
+      rgt<<#to;
+      rgt[1]<<chcmp;
+      cmp=new chcmp(2 of 2);
+      this[2]>>f;
+      this[2]>>t;
+      Map(this,f,t,lft,rgt,1,cmp);
+     ^member:
+      this[2]>>q;
+      this[2]<<false;
+      NilMap(this);
+     ^lookup:
+      this[2]>>q;
+      this[2]<<^nil;
+      NilMap(this);
+     ^popleast:
+      this[2]<<^nil;
+     ^size:
+      this[2]<<0;
+      NilMap(this);
+     ^height:
+      this[2]<<0;
+      NilMap(this);
+     ^pop:
+      this[2]<<^nil;
+     ^copy:
+      $map(#from,#to) s1,s2(1 pure,2);
+      this[2]<<s2;
+      ( NilMap(s1);
+      | NilMap(this);
+      )
+     ^takeover:
+      this[2]>>that;
+      NilMap(that);
+    }
+  ) // }}}
+  NilMap(s);
+) | // }}}
